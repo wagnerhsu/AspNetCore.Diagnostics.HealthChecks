@@ -9,7 +9,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace HealthChecks.UI.Core
+namespace HealthChecks.UI.Core.Middlewares
 {
     public class UIWebHooksApiMiddleware
     {

@@ -5,12 +5,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Serialization;
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace HealthChecks.UI.Middleware
+namespace HealthChecks.UI.Core.Middlewares
 {
     internal class UIApiEndpointMiddleware
     {

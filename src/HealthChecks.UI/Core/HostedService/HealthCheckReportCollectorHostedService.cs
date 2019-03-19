@@ -55,7 +55,8 @@ namespace HealthChecks.UI.Core.HostedService
                 {
                     try
                     {
-                        var runner = scope.ServiceProvider.GetRequiredService<IHealthCheckReportCollector>();
+                        var runner = scope.ServiceProvider
+                            .GetRequiredService<IHealthCheckReportCollector>();
                         await runner.Collect(cancellationToken);
 
                         _logger.LogDebug("HealthCheck collector HostedService executed succesfully.");

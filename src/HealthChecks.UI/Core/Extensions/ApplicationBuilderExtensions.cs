@@ -7,16 +7,12 @@ namespace Microsoft.AspNetCore.Builder
 {
     public static class ApplicationBuilderExtensions
     {
-        public static IApplicationBuilder UseHealthChecksUI(this IApplicationBuilder app, Action<Options> setup)
+        public static IApplicationBuilder UseHealthChecksUI(this IApplicationBuilder app, Action<Options> setup = null)
         {
             var options = new Options();
             setup?.Invoke(options);
 
             return ConfigurePipeline(app, options);
-        }
-        public static IApplicationBuilder UseHealthChecksUI(this IApplicationBuilder app)
-        {
-            return ConfigurePipeline(app, new Options());
         }
         private static IApplicationBuilder ConfigurePipeline(IApplicationBuilder app, Options options)
         {

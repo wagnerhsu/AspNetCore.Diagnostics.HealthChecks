@@ -16,6 +16,7 @@
   </PropertyGroup>
 
   <PropertyGroup Label="Package Versions">
+    <MicrosoftAspNetCoreHosting>2.2.0</MicrosoftAspNetCoreHosting>
     <MicrosoftExtensionsDiagnosticsHealthChecks>2.2.0</MicrosoftExtensionsDiagnosticsHealthChecks>
     <MicrosoftAspNetCoreDiagnosticsHealthChecks>2.2.0</MicrosoftAspNetCoreDiagnosticsHealthChecks>
     <MicrosoftExtensionsHttp>2.2.0</MicrosoftExtensionsHttp>
@@ -48,6 +49,7 @@
     <EventStoreClient>5.0.1</EventStoreClient>
     <MicrosoftAspNetCoreHostingAbstractions>2.2.0</MicrosoftAspNetCoreHostingAbstractions>
     <MicrosoftEntityFrameworkCore>2.2.0</MicrosoftEntityFrameworkCore>
+    <MicrosoftEntityFrameworkCoreInMemory>2.2.0</MicrosoftEntityFrameworkCoreInMemory> 
     <MicrosoftEntityFrameworkCoreDesign>2.2.0</MicrosoftEntityFrameworkCoreDesign>
     <MicrosoftEntityFrameworkCoreSqlite>2.2.0</MicrosoftEntityFrameworkCoreSqlite>
     <MicrosoftEntityFrameworkCoreSqliteDesign>1.1.6</MicrosoftEntityFrameworkCoreSqliteDesign>
