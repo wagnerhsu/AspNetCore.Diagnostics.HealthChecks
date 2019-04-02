@@ -1,4 +1,4 @@
-﻿using HealthChecks.UI.Configuration;
+﻿using HealthChecks.UI.Core.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -14,16 +14,16 @@ namespace HealthChecks.UI.Core.HostedService
     {
         private readonly ILogger<HealthCheckCollectorHostedService> _logger;
         private readonly IServiceProvider _serviceProvider;
-        private readonly Settings _settings;
+        private readonly HealthCheckSettings _settings;
 
         private Task _executingTask;
         private CancellationTokenSource _cancellationTokenSource;
 
-        public HealthCheckCollectorHostedService(IServiceProvider provider, IOptions<Settings> settings, ILogger<HealthCheckCollectorHostedService> logger)
+        public HealthCheckCollectorHostedService(IServiceProvider provider, IOptions<HealthCheckSettings> settings, ILogger<HealthCheckCollectorHostedService> logger)
         {
             _serviceProvider = provider ?? throw new ArgumentNullException(nameof(provider));
             _logger = logger ?? throw new ArgumentNullException(nameof(provider));
-            _settings = settings.Value ?? new Settings();
+            _settings = settings.Value ?? new HealthCheckSettings();
             _cancellationTokenSource = new CancellationTokenSource();
         }
         public Task StartAsync(CancellationToken cancellationToken)

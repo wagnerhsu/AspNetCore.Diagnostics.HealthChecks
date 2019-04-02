@@ -1,17 +1,17 @@
 ﻿using System.Collections.Generic;
 
-namespace HealthChecks.UI.Configuration
+namespace HealthChecks.UI.Core.Configuration
 {
-    public class Settings
+    public class HealthCheckSettings
     {
-        public List<HealthCheckSetting> HealthChecks { get; set; }
+        public List<HealthCheck> HealthChecks { get; set; }
         public List<WebHookNotification> Webhooks { get; set; } = new List<WebHookNotification>();
         public int EvaluationTimeOnSeconds { get; set; } = 10;
         public int MinimumSecondsBetweenFailureNotifications { get; set; } = 60 * 10;
         public string HealthCheckDatabaseConnectionString { get; set; }
     }
 
-    public class HealthCheckSetting
+    public class HealthCheck
     {
         public string Name { get; set; }
         public string Uri { get; set; }

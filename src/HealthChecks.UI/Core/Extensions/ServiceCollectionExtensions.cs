@@ -1,5 +1,5 @@
 ﻿using HealthChecks.UI;
-using HealthChecks.UI.Configuration;
+using HealthChecks.UI.Core.Configuration;
 using HealthChecks.UI.Core.Discovery.K8S;
 using HealthChecks.UI.Core.Discovery.K8S.Extensions;
 using HealthChecks.UI.Core.HostedService;
@@ -13,7 +13,11 @@ namespace Microsoft.Extensions.DependencyInjection
 {
     public static class ServiceCollectionExtensions
     {
-        public static IHealthChecksUIBuilder AddHealthChecksUI(this IServiceCollection services, Action<Settings> setupSettings = null)
+        public static IHealthChecksUIBuilder AddHealthChecksUI(this IServiceCollection services, HealthCheckSettings options)
+        {
+            return AddHealthChecksUI(services, uioptions => uioptions = options);
+        }
+        public static IHealthChecksUIBuilder AddHealthChecksUI(this IServiceCollection services, Action<HealthCheckSettings> setupAction)
         {
             var provider = services.BuildServiceProvider();
 
@@ -26,10 +30,10 @@ namespace Microsoft.Extensions.DependencyInjection
 
             services
                 .AddOptions()
-                .Configure<Settings>(settings =>
+                .Configure<HealthCheckSettings>(settings =>
                 {
                     configuration.Bind(Keys.HEALTHCHECKSUI_SECTION_SETTING_KEY, settings);
-                    setupSettings?.Invoke(settings);
+                    setupAction?.Invoke(settings);
                 })
                 .Configure<KubernetesDiscoverySettings>(settings =>
                 {

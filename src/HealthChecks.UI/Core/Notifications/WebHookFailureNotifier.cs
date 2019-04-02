@@ -1,5 +1,5 @@
 ﻿using HealthChecks.UI.Client;
-using HealthChecks.UI.Configuration;
+using HealthChecks.UI.Core.Configuration;
 using HealthChecks.UI.Core.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -16,12 +16,12 @@ namespace HealthChecks.UI.Core.Notifications
         : IHealthCheckFailureNotifier
     {
         private readonly ILogger<WebHookFailureNotifier> _logger;
-        private readonly Settings _settings;
+        private readonly HealthCheckSettings _settings;
         private readonly HealthChecksDb _db;
-        public WebHookFailureNotifier(HealthChecksDb db, IOptions<Settings> settings, ILogger<WebHookFailureNotifier> logger)
+        public WebHookFailureNotifier(HealthChecksDb db, IOptions<HealthCheckSettings> settings, ILogger<WebHookFailureNotifier> logger)
         {
             _db = db ?? throw new ArgumentNullException(nameof(db));
-            _settings = settings.Value ?? new Settings();
+            _settings = settings.Value ?? new HealthCheckSettings();
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
         public async Task NotifyDown(string name, UIHealthReport report)

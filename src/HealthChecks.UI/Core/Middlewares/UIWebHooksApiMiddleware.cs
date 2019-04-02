@@ -1,4 +1,4 @@
-﻿using HealthChecks.UI.Configuration;
+﻿using HealthChecks.UI.Core.Configuration;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -27,7 +27,7 @@ namespace HealthChecks.UI.Core.Middlewares
         {
             using (var scope = _serviceScopeFactory.CreateScope())
             {
-                var settings = scope.ServiceProvider.GetService<IOptions<Settings>>();
+                var settings = scope.ServiceProvider.GetService<IOptions<HealthCheckSettings>>();
                 var sanitizedWebhooksResponse = settings.Value.Webhooks.Select(item => new
                 {
                     item.Name,

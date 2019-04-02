@@ -1,4 +1,5 @@
 ﻿using FluentAssertions;
+using HealthChecks.UI.Configuration;
 using HealthChecks.UI.Core.Data;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -22,7 +23,7 @@ namespace UnitTests.UI.Extensions
                 .UseStartup<DefaultStartup>()
                 .ConfigureServices(services =>
                 {
-                    services.AddHealthChecksUI()
+                    services.AddHealthChecksUI(new HealthCheckSettings())
                         .UseDefaultStore();
                 })
                 .UseContentRoot(Path.GetDirectoryName(path));
@@ -43,34 +44,6 @@ namespace UnitTests.UI.Extensions
             db.Database.ProviderName
                 .Should()
                 .Be("Microsoft.EntityFrameworkCore.Sqlite");
-        }
-
-        [Fact]
-        public void ConfigureStore_enable_custom_db_configuration()
-        {
-            var path = Assembly
-                .GetAssembly(typeof(HealtChecksUIBuilderExtensionsTests))
-                .Location;
-
-            var webHost = new WebHostBuilder()
-                .UseStartup<DefaultStartup>()
-                .ConfigureServices(services =>
-                {
-                    services.AddHealthChecksUI()
-                        .ConfigureStore(setup=>
-                        {
-                            setup.UseInMemoryDatabase("healthchecksdb",null);
-                        },ServiceLifetime.Singleton);
-                })
-                .UseContentRoot(Path.GetDirectoryName(path));
-
-            var host = webHost.Build();
-
-            var db = host.Services
-                .GetRequiredService<HealthChecksDb>();
-
-            db.Database.ProviderName
-                .Should().Be("Microsoft.EntityFrameworkCore.InMemory");
         }
     }
 

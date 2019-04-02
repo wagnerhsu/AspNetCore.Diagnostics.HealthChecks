@@ -1,7 +1,6 @@
-﻿using HealthChecks.UI.Configuration;
+﻿using HealthChecks.UI.Core.Configuration;
 using HealthChecks.UI.Core.Data;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -27,45 +26,26 @@ namespace Microsoft.Extensions.DependencyInjection
     }
     public static class HealthChecksUIBuilderExtensions
     {
-        public static IHealthChecksUIBuilder ConfigureStore(this IHealthChecksUIBuilder builder, Action<DbContextOptionsBuilder> setup, ServiceLifetime lifetime = ServiceLifetime.Scoped)
+        public static IHealthChecksUIBuilder UseDefaultStore(this IHealthChecksUIBuilder builder, string databaseName = "healthchecksdb")
         {
             var provider = builder.Services
                 .BuildServiceProvider();
 
             var healthCheckSettings = provider
-                      .GetService<IOptions<Settings>>()
-                      .Value ?? new Settings();
-
-            builder
-                .Services
-                .AddDbContext<HealthChecksDb>(optionsAction: setup, optionsLifetime: lifetime);
-
-            CreateDatabase(builder.Services, healthCheckSettings);
-
-            return builder;
-        }
-        public static IHealthChecksUIBuilder UseDefaultStore(this IHealthChecksUIBuilder builder)
-        {
-            const string DEFAULT_DATABASE_NAME = "healthchecksdb";
-
-            var provider = builder.Services
-                .BuildServiceProvider();
-
-            var healthCheckSettings = provider
-                       .GetService<IOptions<Settings>>()
-                       .Value ?? new Settings();
+                       .GetService<IOptions<HealthCheckSettings>>()
+                       .Value ?? new HealthCheckSettings();
 
             var configuration = provider
                 .GetService<IConfiguration>();
 
-            return ConfigureStore(builder, db =>
+            builder.Services.AddDbContext<HealthChecksDb>(setup =>
             {
                 var connectionString = healthCheckSettings.HealthCheckDatabaseConnectionString;
 
                 if (string.IsNullOrWhiteSpace(connectionString))
                 {
                     var contentRoot = configuration[HostDefaults.ContentRootKey];
-                    var path = Path.Combine(contentRoot, DEFAULT_DATABASE_NAME);
+                    var path = Path.Combine(contentRoot, databaseName);
                     connectionString = $"Data Source={path}";
                 }
                 else
@@ -73,10 +53,14 @@ namespace Microsoft.Extensions.DependencyInjection
                     connectionString = Environment.ExpandEnvironmentVariables(connectionString);
                 }
 
-                db.UseSqlite(connectionString);
+                setup.UseSqlite(connectionString);
             });
+
+            CreateDatabase(builder.Services, healthCheckSettings);
+
+            return builder;
         }
-        static void CreateDatabase(IServiceCollection services, Settings settings)
+        static void CreateDatabase(IServiceCollection services, HealthCheckSettings settings)
         {
             var scopeFactory = services.BuildServiceProvider()
                 .GetRequiredService<IServiceScopeFactory>();
@@ -86,23 +70,16 @@ namespace Microsoft.Extensions.DependencyInjection
                 var db = scope.ServiceProvider
                     .GetService<HealthChecksDb>();
 
-                var migrator = scope.ServiceProvider
-                    .GetService<IMigrator>();
-
                 db.Database.EnsureDeleted();
-               
-                if(migrator != null )
-                {
-                    db.Database.Migrate();
-                }
 
-                var healthCheckConfigurations = settings?
-                    .HealthChecks?
-                    .Select(s => new HealthCheckConfiguration()
-                    {
-                        Name = s.Name,
-                        Uri = s.Uri
-                    });
+                db.Database.Migrate();
+
+                var healthCheckConfigurations = settings?.HealthChecks?
+                .Select(s => new HealthCheckConfiguration()
+                {
+                    Name = s.Name,
+                    Uri = s.Uri
+                });
 
                 if (healthCheckConfigurations != null
                     &&

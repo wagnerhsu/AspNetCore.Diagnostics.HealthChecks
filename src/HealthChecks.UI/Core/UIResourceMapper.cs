@@ -1,4 +1,4 @@
-﻿using HealthChecks.UI.Configuration;
+﻿using HealthChecks.UI.Core.Configuration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using System;
@@ -13,7 +13,7 @@ namespace HealthChecks.UI.Core
         {
             _reader = reader ?? throw new ArgumentNullException(nameof(reader));
         }
-        public void Map(IApplicationBuilder app, Options options)
+        public void Map(IApplicationBuilder app, HealthCheckUIOptions options)
         {
             var resources = _reader.UIResources;
             var ui = resources.GetMainUI(options);

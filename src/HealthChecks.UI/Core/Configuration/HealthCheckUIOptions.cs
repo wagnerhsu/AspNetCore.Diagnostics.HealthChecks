@@ -1,6 +1,6 @@
-﻿namespace HealthChecks.UI.Configuration
+﻿namespace HealthChecks.UI.Core.Configuration
 {
-    public class Options
+    public class HealthCheckUIOptions
     {
         public string UIPath { get; set; } = "/healthchecks-ui";
         public string ApiPath { get; set; } = "/healthchecks-api";

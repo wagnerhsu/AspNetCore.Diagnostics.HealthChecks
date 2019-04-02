@@ -1,20 +1,20 @@
-﻿using HealthChecks.UI.Configuration;
-using HealthChecks.UI.Core;
-using HealthChecks.UI.Middleware;
+﻿using HealthChecks.UI.Core;
+using HealthChecks.UI.Core.Configuration;
+using HealthChecks.UI.Core.Middlewares;
 using System;
 
 namespace Microsoft.AspNetCore.Builder
 {
     public static class ApplicationBuilderExtensions
     {
-        public static IApplicationBuilder UseHealthChecksUI(this IApplicationBuilder app, Action<Options> setup = null)
+        public static IApplicationBuilder UseHealthChecksUI(this IApplicationBuilder app, Action<HealthCheckUIOptions> setup = null)
         {
-            var options = new Options();
+            var options = new HealthCheckUIOptions();
             setup?.Invoke(options);
 
             return ConfigurePipeline(app, options);
         }
-        private static IApplicationBuilder ConfigurePipeline(IApplicationBuilder app, Options options)
+        private static IApplicationBuilder ConfigurePipeline(IApplicationBuilder app, HealthCheckUIOptions options)
         {
             EnsureValidApiOptions(options);
 
@@ -29,7 +29,7 @@ namespace Microsoft.AspNetCore.Builder
 
             return app;
         }
-        private static void EnsureValidApiOptions(Options options)
+        private static void EnsureValidApiOptions(HealthCheckUIOptions options)
         {
             Action<string, string> ensureValidPath = (string path, string argument) =>
              {
@@ -39,9 +39,9 @@ namespace Microsoft.AspNetCore.Builder
                  }
              };
 
-            ensureValidPath(options.ApiPath, nameof(Options.ApiPath));
-            ensureValidPath(options.UIPath, nameof(Options.UIPath));
-            ensureValidPath(options.WebhookPath, nameof(Options.WebhookPath));
+            ensureValidPath(options.ApiPath, nameof(HealthCheckUIOptions.ApiPath));
+            ensureValidPath(options.UIPath, nameof(HealthCheckUIOptions.UIPath));
+            ensureValidPath(options.WebhookPath, nameof(HealthCheckUIOptions.WebhookPath));
         }
     }
 }

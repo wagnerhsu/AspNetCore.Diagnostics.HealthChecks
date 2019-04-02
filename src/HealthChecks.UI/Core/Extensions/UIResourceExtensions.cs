@@ -1,4 +1,4 @@
-﻿using HealthChecks.UI.Configuration;
+﻿using HealthChecks.UI.Core.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,7 +7,7 @@ namespace HealthChecks.UI.Core
 {
     internal static class UIResourceExtensions
     {
-        public static UIResource GetMainUI(this IEnumerable<UIResource> resources, Options options)
+        public static UIResource GetMainUI(this IEnumerable<UIResource> resources, HealthCheckUIOptions options)
         {
             var resource = resources
                 .Where(r => r.ContentType == ContentType.HTML && r.FileName == Keys.HEALTHCHECKSUI_MAIN_UI_RESOURCE)

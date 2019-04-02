@@ -1,5 +1,5 @@
 ﻿using HealthChecks.UI.Client;
-using HealthChecks.UI.Configuration;
+using HealthChecks.UI.Core.Configuration;
 using HealthChecks.UI.Core.Data;
 using HealthChecks.UI.Core.Notifications;
 using Microsoft.EntityFrameworkCore;
@@ -7,7 +7,6 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -20,13 +19,13 @@ namespace HealthChecks.UI.Core.HostedService
     {
         private readonly HealthChecksDb _db;
         private readonly IHealthCheckFailureNotifier _healthCheckFailureNotifier;
-        private readonly Settings _settings;
+        private readonly HealthCheckSettings _settings;
         private readonly HttpClient _httpClient;
         private readonly ILogger<HealthCheckReportCollector> _logger;
         public HealthCheckReportCollector(
             HealthChecksDb db,
             IHealthCheckFailureNotifier healthCheckFailureNotifier,
-            IOptions<Settings> settings,
+            IOptions<HealthCheckSettings> settings,
             IHttpClientFactory httpClientFactory,
             ILogger<HealthCheckReportCollector> logger)
         {
