@@ -1,6 +1,8 @@
 ﻿using HealthChecks.UI.Core.Configuration;
 using HealthChecks.UI.Core.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -26,7 +28,7 @@ namespace Microsoft.Extensions.DependencyInjection
     }
     public static class HealthChecksUIBuilderExtensions
     {
-        public static IHealthChecksUIBuilder UseDefaultStore(this IHealthChecksUIBuilder builder, string databaseName = "healthchecksdb")
+        public static IHealthChecksUIBuilder UseDefaultStore(this IHealthChecksUIBuilder builder, string databaseName = "healthchecksdb", bool recreateDatabase = true)
         {
             var provider = builder.Services
                 .BuildServiceProvider();
@@ -52,15 +54,13 @@ namespace Microsoft.Extensions.DependencyInjection
                 {
                     connectionString = Environment.ExpandEnvironmentVariables(connectionString);
                 }
-
-                setup.UseSqlite(connectionString);
             });
 
-            CreateDatabase(builder.Services, healthCheckSettings);
+            CreateDatabase(builder.Services, healthCheckSettings, recreateDatabase);
 
             return builder;
         }
-        static void CreateDatabase(IServiceCollection services, HealthCheckSettings settings)
+        static void CreateDatabase(IServiceCollection services, HealthCheckSettings settings, bool recreateDatabase = true)
         {
             var scopeFactory = services.BuildServiceProvider()
                 .GetRequiredService<IServiceScopeFactory>();
@@ -70,25 +70,36 @@ namespace Microsoft.Extensions.DependencyInjection
                 var db = scope.ServiceProvider
                     .GetService<HealthChecksDb>();
 
-                db.Database.EnsureDeleted();
+                var migrator = db.GetService<IServiceProvider>()
+                    .GetService(typeof(IMigrator));
 
-                db.Database.Migrate();
-
-                var healthCheckConfigurations = settings?.HealthChecks?
-                .Select(s => new HealthCheckConfiguration()
+                if (recreateDatabase)
                 {
-                    Name = s.Name,
-                    Uri = s.Uri
-                });
+                    db.Database.EnsureDeleted();
 
-                if (healthCheckConfigurations != null
-                    &&
-                    healthCheckConfigurations.Any())
-                {
-                    db.Configurations
-                        .AddRange(healthCheckConfigurations);
+                    if (migrator != null)
+                    {
+                        db.Database.Migrate();
+                    }
 
-                    db.SaveChanges();
+                    db.Database.EnsureCreated();
+
+                    var healthCheckConfigurations = settings?.HealthChecks?
+                    .Select(s => new HealthCheckConfiguration()
+                    {
+                        Name = s.Name,
+                        Uri = s.Uri
+                    });
+
+                    if (healthCheckConfigurations != null
+                        &&
+                        healthCheckConfigurations.Any())
+                    {
+                        db.Configurations
+                            .AddRange(healthCheckConfigurations);
+
+                        db.SaveChanges();
+                    }
                 }
             }
         }
