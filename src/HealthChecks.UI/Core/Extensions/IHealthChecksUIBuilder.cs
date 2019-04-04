@@ -73,7 +73,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 var migrator = db.GetService<IServiceProvider>()
                     .GetService(typeof(IMigrator));
 
-                if (recreateDatabase)
+                if (recreateDatabase || !db.Database.CanConnect())
                 {
                     db.Database.EnsureDeleted();
 

@@ -1,5 +1,5 @@
 ﻿using FluentAssertions;
-using HealthChecks.UI.Configuration;
+using HealthChecks.UI.Core.Configuration;
 using HealthChecks.UI.Core.Data;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
