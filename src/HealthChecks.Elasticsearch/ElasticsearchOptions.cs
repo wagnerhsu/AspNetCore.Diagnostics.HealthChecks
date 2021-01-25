@@ -1,4 +1,5 @@
 using System;
+using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 
 namespace HealthChecks.Elasticsearch
@@ -11,7 +12,8 @@ namespace HealthChecks.Elasticsearch
         public X509Certificate Certificate { get; private set; }
         public bool AuthenticateWithBasicCredentials { get; private set; } = false;
         public bool AuthenticateWithCertificate { get; private set; } = false;
-
+        public Func<object, X509Certificate, X509Chain, SslPolicyErrors, bool> CertificateValidationCallback { get; private set; }
+        public TimeSpan? RequestTimeout { get; set; }
         public ElasticsearchOptions UseBasicAuthentication(string name, string password)
         {
             UserName = name ?? throw new ArgumentNullException(nameof(name));
@@ -22,11 +24,10 @@ namespace HealthChecks.Elasticsearch
             AuthenticateWithBasicCredentials = true;
             return this;
         }
-
         public ElasticsearchOptions UseCertificate(X509Certificate certificate)
         {
             Certificate = certificate ?? throw new ArgumentNullException(nameof(certificate));
-            
+
             UserName = string.Empty;
             Password = string.Empty;
             AuthenticateWithBasicCredentials = false;
@@ -37,6 +38,11 @@ namespace HealthChecks.Elasticsearch
         {
             Uri = uri ?? throw new ArgumentNullException(nameof(uri));
 
+            return this;
+        }
+        public ElasticsearchOptions UseCertificateValidationCallback(Func<object, X509Certificate, X509Chain, SslPolicyErrors, bool> callback)
+        {
+            CertificateValidationCallback = callback;
             return this;
         }
     }

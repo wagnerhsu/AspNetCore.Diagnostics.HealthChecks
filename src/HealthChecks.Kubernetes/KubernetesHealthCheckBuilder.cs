@@ -6,11 +6,10 @@ namespace HealthChecks.Kubernetes
     {
         internal KubernetesClientConfiguration Configuration { get; private set; }
         internal KubernetesHealthCheckOptions Options { get; private set; }
-
         public KubernetesHealthCheckOptions WithConfiguration(KubernetesClientConfiguration configuration)
         {
             Configuration = configuration;
-            Options =  new KubernetesHealthCheckOptions();
+            Options = new KubernetesHealthCheckOptions();
             return Options;
         }
     }

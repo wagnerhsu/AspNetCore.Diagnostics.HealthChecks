@@ -1,8 +1,10 @@
-﻿using Microsoft.Azure.KeyVault;
-using Microsoft.Azure.Services.AppAuthentication;
+﻿using Azure.Core;
+using Azure.Security.KeyVault.Certificates;
+using Azure.Security.KeyVault.Keys;
+using Azure.Security.KeyVault.Secrets;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using System;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -11,21 +13,49 @@ namespace HealthChecks.AzureKeyVault
     public class AzureKeyVaultHealthCheck : IHealthCheck
     {
         private readonly AzureKeyVaultOptions _options;
+        private readonly Uri _keyVaultUri;
+        private readonly TokenCredential _azureCredential;
 
-        public AzureKeyVaultHealthCheck(AzureKeyVaultOptions options)
+        private static readonly ConcurrentDictionary<Uri, SecretClient> _secretClientsHolder = new ConcurrentDictionary<Uri, SecretClient>();
+        private static readonly ConcurrentDictionary<Uri, KeyClient> _keyClientsHolder = new ConcurrentDictionary<Uri, KeyClient>();
+        private static readonly ConcurrentDictionary<Uri, CertificateClient> _certificateClientsHolder = new ConcurrentDictionary<Uri, CertificateClient>();
+
+        public AzureKeyVaultHealthCheck(Uri keyVaultUri, TokenCredential credential, AzureKeyVaultOptions options)
         {
+            _keyVaultUri = keyVaultUri ?? throw new ArgumentNullException(nameof(keyVaultUri));
+            _azureCredential = credential ?? throw new ArgumentNullException(nameof(credential));
             _options = options ?? throw new ArgumentNullException(nameof(options));
         }
         public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
         {
-            var currentSecret = string.Empty;
-
             try
             {
-                var client = CreateClient();
-                foreach (var item in _options.Secrets)
+                foreach (var secret in _options.Secrets)
                 {
-                    await client.GetSecretAsync(_options.KeyVaultUrlBase, item, cancellationToken);
+                    var secretClient = CreateSecretClient();
+                    await secretClient.GetSecretAsync(secret, cancellationToken: cancellationToken);
+                }
+
+                foreach (var key in _options.Keys)
+                {
+                    var keyClient = CreateKeyClient();
+                    await keyClient.GetKeyAsync(key, cancellationToken: cancellationToken);
+                }
+
+                foreach (var (key, checkExpired) in _options.Certificates)
+                {
+                    var certificateClient = CreateCertificateClient();
+                    var certificate = await certificateClient.GetCertificateAsync(key, cancellationToken: cancellationToken);
+
+                    if (checkExpired && certificate.Value.Properties.ExpiresOn.HasValue)
+                    {
+                        var expirationDate = certificate.Value.Properties.ExpiresOn.Value;
+
+                        if (expirationDate < DateTime.UtcNow)
+                        {
+                            throw new Exception($"The certificate with key {key} has expired with date {expirationDate}");
+                        }
+                    }
                 }
 
                 return HealthCheckResult.Healthy();
@@ -36,31 +66,37 @@ namespace HealthChecks.AzureKeyVault
             }
         }
 
-        private KeyVaultClient CreateClient()
+        private KeyClient CreateKeyClient()
         {
-            if (_options.UseManagedServiceIdentity)
+            if (!_keyClientsHolder.TryGetValue(_keyVaultUri, out KeyClient client))
             {
-                var azureServiceTokenProvider = new AzureServiceTokenProvider();
-                return new KeyVaultClient(new KeyVaultClient.AuthenticationCallback(azureServiceTokenProvider.KeyVaultTokenCallback));
+                client = new KeyClient(_keyVaultUri, _azureCredential);
+                _keyClientsHolder.TryAdd(_keyVaultUri, client);
             }
-            else
-            {
-                return new KeyVaultClient(GetToken);
-            }
+
+            return client;
         }
 
-        private async Task<string> GetToken(string authority, string resource, string scope)
+        private SecretClient CreateSecretClient()
         {
-            var authContext = new AuthenticationContext(authority);
-            var clientCred = new ClientCredential(_options.ClientId, _options.ClientSecret);
-            var result = await authContext.AcquireTokenAsync(resource, clientCred);
-
-            if (result == null)
+            if (!_secretClientsHolder.TryGetValue(_keyVaultUri, out SecretClient client))
             {
-                throw new InvalidOperationException($"[{nameof(AzureKeyVaultHealthCheck)}] - Failed to obtain the JWT token");
+                client = new SecretClient(_keyVaultUri, _azureCredential);
+                _secretClientsHolder.TryAdd(_keyVaultUri, client);
             }
-             
-            return result.AccessToken;
+
+            return client;
+        }
+
+        private CertificateClient CreateCertificateClient()
+        {
+            if (!_certificateClientsHolder.TryGetValue(_keyVaultUri, out CertificateClient client))
+            {
+                client = new CertificateClient(_keyVaultUri, _azureCredential);
+                _certificateClientsHolder.TryAdd(_keyVaultUri, client);
+            }
+
+            return client;
         }
     }
 }

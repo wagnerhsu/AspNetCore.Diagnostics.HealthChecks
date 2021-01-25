@@ -9,7 +9,6 @@ namespace Microsoft.Extensions.DependencyInjection
     public static class ConsulHealthCheckBuilderExtensions
     {
         private const string NAME = "consul";
-
         /// <summary>
         /// Add a health check for Consul services.
         /// </summary>
@@ -22,24 +21,25 @@ namespace Microsoft.Extensions.DependencyInjection
         /// the default status of <see cref="HealthStatus.Unhealthy"/> will be reported.
         /// </param>
         /// <param name="tags">A list of tags that can be used to filter sets of health checks. Optional.</param>
-        /// <returns>The <see cref="IHealthChecksBuilder"/>.</returns></param>
-        public static IHealthChecksBuilder AddConsul(this IHealthChecksBuilder builder, Action<ConsulOptions> setup, string name = default, HealthStatus? failureStatus = default, IEnumerable<string> tags = default)
+        /// <param name="timeout">An optional System.TimeSpan representing the timeout of the check.</param>
+        /// <returns>The <see cref="IHealthChecksBuilder"/>.</returns>
+        public static IHealthChecksBuilder AddConsul(this IHealthChecksBuilder builder, Action<ConsulOptions> setup, string name = default, HealthStatus? failureStatus = default, IEnumerable<string> tags = default, TimeSpan? timeout = default)
+        {
+            builder.Services.AddHttpClient();
+
+            var registrationName = name ?? NAME;
+            return builder.Add(new HealthCheckRegistration(
+                registrationName,
+                sp => CreateHealthCheck(sp, setup, registrationName),
+                failureStatus,
+                tags,
+                timeout));
+        }
+        private static ConsulHealthCheck CreateHealthCheck(IServiceProvider sp, Action<ConsulOptions> setup, string name)
         {
             var options = new ConsulOptions();
             setup?.Invoke(options);
 
-            builder.Services.AddHttpClient();
-
-            var registrationName = name ?? NAME;
-
-            return builder.Add(new HealthCheckRegistration(
-                name ?? NAME,
-                sp => CreateHealthCheck(sp, options, registrationName),
-                failureStatus,
-                tags));
-        }
-        static ConsulHealthCheck CreateHealthCheck(IServiceProvider sp, ConsulOptions options, string name)
-        {
             var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
             return new ConsulHealthCheck(options, () => httpClientFactory.CreateClient(name));
         }

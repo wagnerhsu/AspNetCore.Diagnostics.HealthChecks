@@ -1,6 +1,7 @@
 ﻿using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace HealthChecks.Publisher.ApplicationInsights
 {
-    class ApplicationInsightsPublisher
+    internal class ApplicationInsightsPublisher
         : IHealthCheckPublisher
     {
         const string EVENT_NAME = "AspNetCoreHealthCheck";
@@ -18,14 +19,20 @@ namespace HealthChecks.Publisher.ApplicationInsights
         const string METRIC_DURATION_NAME = "AspNetCoreHealthCheckDuration";
         const string HEALTHCHECK_NAME = "AspNetCoreHealthCheckName";
 
-        private readonly string _instrumentationKey;
         private static TelemetryClient _client;
-        private static object sync_root = new object();
+        private static readonly object sync_root = new object();
+        private readonly TelemetryConfiguration _telemetryConfiguration;
+        private readonly string _instrumentationKey;
         private readonly bool _saveDetailedReport;
         private readonly bool _excludeHealthyReports;
 
-        public ApplicationInsightsPublisher(string instrumentationKey = default, bool saveDetailedReport = false, bool excludeHealthyReports = false)
+        public ApplicationInsightsPublisher(
+            IOptions<TelemetryConfiguration> telemetryConfiguration,
+            string instrumentationKey = default,
+            bool saveDetailedReport = false,
+            bool excludeHealthyReports = false)
         {
+            _telemetryConfiguration = telemetryConfiguration?.Value;
             _instrumentationKey = instrumentationKey;
             _saveDetailedReport = saveDetailedReport;
             _excludeHealthyReports = excludeHealthyReports;
@@ -48,8 +55,10 @@ namespace HealthChecks.Publisher.ApplicationInsights
                 SaveGeneralizedReport(report, client);
             }
 
+
             return Task.CompletedTask;
         }
+
         private void SaveDetailedReport(HealthReport report, TelemetryClient client)
         {
             foreach (var reportEntry in report.Entries.Where(entry => !_excludeHealthyReports || entry.Value.Status != HealthStatus.Healthy))
@@ -57,32 +66,48 @@ namespace HealthChecks.Publisher.ApplicationInsights
                 client.TrackEvent($"{EVENT_NAME}:{reportEntry.Key}",
                     properties: new Dictionary<string, string>()
                     {
-                        {nameof(Environment.MachineName), Environment.MachineName},
-                        {nameof(Assembly), Assembly.GetEntryAssembly().GetName().Name },
-                        {HEALTHCHECK_NAME, reportEntry.Key }
+                        { nameof(Environment.MachineName), Environment.MachineName },
+                        { nameof(Assembly), Assembly.GetEntryAssembly().GetName().Name },
+                        { HEALTHCHECK_NAME, reportEntry.Key }
                     },
                     metrics: new Dictionary<string, double>()
                     {
-                        { METRIC_STATUS_NAME, reportEntry.Value.Status == HealthStatus.Healthy ? 1 :0},
-                        { METRIC_DURATION_NAME, reportEntry.Value.Duration.TotalMilliseconds}
+                        { METRIC_STATUS_NAME, reportEntry.Value.Status == HealthStatus.Healthy ? 1 : 0 },
+                        { METRIC_DURATION_NAME, reportEntry.Value.Duration.TotalMilliseconds }
+                    });
+            }
+
+            foreach (var reportEntry in report.Entries.Where(entry => entry.Value.Exception != null))
+            {
+                client.TrackException(reportEntry.Value.Exception,
+                    properties: new Dictionary<string, string>()
+                    {
+                        { nameof(Environment.MachineName), Environment.MachineName },
+                        { nameof(Assembly), Assembly.GetEntryAssembly().GetName().Name },
+                        { HEALTHCHECK_NAME, reportEntry.Key }
+                    },
+                    metrics: new Dictionary<string, double>()
+                    {
+                        { METRIC_STATUS_NAME, reportEntry.Value.Status == HealthStatus.Healthy ? 1 : 0 },
+                        { METRIC_DURATION_NAME, reportEntry.Value.Duration.TotalMilliseconds }
                     });
             }
         }
         private static void SaveGeneralizedReport(HealthReport report, TelemetryClient client)
         {
             client.TrackEvent(EVENT_NAME,
-                properties: new Dictionary<string, string>()
+                properties: new Dictionary<string, string>
                 {
-                    {nameof(Environment.MachineName),Environment.MachineName},
-                    {nameof(Assembly),Assembly.GetEntryAssembly().GetName().Name }
+                    { nameof(Environment.MachineName), Environment.MachineName },
+                    { nameof(Assembly), Assembly.GetEntryAssembly().GetName().Name }
                 },
-                metrics: new Dictionary<string, double>()
+                metrics: new Dictionary<string, double>
                 {
-                    { METRIC_STATUS_NAME ,report.Status == HealthStatus.Healthy ? 1 :0},
-                    { METRIC_DURATION_NAME,report.TotalDuration.TotalMilliseconds}
+                    { METRIC_STATUS_NAME, report.Status == HealthStatus.Healthy ? 1 : 0 },
+                    { METRIC_DURATION_NAME, report.TotalDuration.TotalMilliseconds }
                 });
         }
-        TelemetryClient GetOrCreateTelemetryClient()
+        private TelemetryClient GetOrCreateTelemetryClient()
         {
             if (_client == null)
             {
@@ -90,13 +115,12 @@ namespace HealthChecks.Publisher.ApplicationInsights
                 {
                     if (_client == null)
                     {
-                        //override instrumentation key or use default instrumentation 
-                        //key active on the project.
+                        //override instrumentation key or use default telemetry
+                        //configuration active on the project.
 
                         var configuration = string.IsNullOrWhiteSpace(_instrumentationKey)
-                            ? TelemetryConfiguration.Active
+                            ? _telemetryConfiguration
                             : new TelemetryConfiguration(_instrumentationKey);
-
 
                         _client = new TelemetryClient(configuration);
                     }

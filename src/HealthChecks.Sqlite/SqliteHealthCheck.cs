@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace HealthChecks.Sqlite
 {
-    public class SqliteHealthCheck 
+    public class SqliteHealthCheck
         : IHealthCheck
     {
         private readonly string _connectionString;
@@ -27,7 +27,7 @@ namespace HealthChecks.Sqlite
                     using (var command = connection.CreateCommand())
                     {
                         command.CommandText = _sql;
-                        await command.ExecuteScalarAsync();
+                        await command.ExecuteScalarAsync(cancellationToken);
                     }
 
                     return HealthCheckResult.Healthy();

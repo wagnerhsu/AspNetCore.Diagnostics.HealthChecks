@@ -17,33 +17,31 @@ namespace HealthChecks.Redis
         {
             _redisConnectionString = redisConnectionString ?? throw new ArgumentNullException(nameof(redisConnectionString));
         }
-        public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
+
+        public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
         {
             try
             {
-                ConnectionMultiplexer connection;
-
-                if (!_connections.TryGetValue(_redisConnectionString, out connection))
+                if (!_connections.TryGetValue(_redisConnectionString, out ConnectionMultiplexer connection))
                 {
-                    connection = ConnectionMultiplexer.Connect(_redisConnectionString);
+                    connection = await ConnectionMultiplexer.ConnectAsync(_redisConnectionString);
 
                     if (!_connections.TryAdd(_redisConnectionString, connection))
                     {
-                        return Task.FromResult(
-                             new HealthCheckResult(context.Registration.FailureStatus, description: "New redis connection can't be added into dictionary."));
+                        // Dispose new connection which we just created, because we don't need it.
+                        connection.Dispose();
+                        connection = _connections[_redisConnectionString];
                     }
                 }
 
-                connection.GetDatabase()
-                    .Ping();
+                await connection.GetDatabase()
+                    .PingAsync();
 
-                return Task.FromResult(
-                    HealthCheckResult.Healthy());
+                return HealthCheckResult.Healthy();
             }
             catch (Exception ex)
             {
-                return Task.FromResult(
-                    new HealthCheckResult(context.Registration.FailureStatus, exception: ex));
+                return new HealthCheckResult(context.Registration.FailureStatus, exception: ex);
             }
         }
     }

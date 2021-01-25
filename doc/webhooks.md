@@ -2,6 +2,66 @@
 
 ![HealthChecksUI](./images/ui-webhooks.png)
 
+> HealthCheckUI replace automatically [[LIVENESS]], [[FAILURE]] and [[DESCRIPTIONS]] bookmarks.
+
+Webhooks can be configured using configuration providers or by code.
+
+If you are using json file configuration. you must escape the json before setting the **Payload** property in the configuration file:
+
+```json
+{
+  "BeatPulse-UI": {
+    "HealthChecks": [
+      {
+        "Name": "HTTP-Api-Basic",
+        "Uri": "http://localhost:6457/health"
+      }
+    ],
+    "Webhooks": [
+      {
+        "Name": "Teams",
+        "Uri": "https://outlook.office.com/webhook/...",
+        "Payload": "{\r\n  \"@context\": \"http://schema.org/extensions\",\r\n  \"@type\": \"MessageCard\",\r\n  \"themeColor\": \"0072C6\",\r\n  \"title\": \"[[LIVENESS]] has failed!\",\r\n  \"text\": \"[[FAILURE]] Click **Learn More** to go to BeatPulseUI Portal\",\r\n  \"potentialAction\": [\r\n    {\r\n      \"@type\": \"OpenUri\",\r\n      \"name\": \"Lear More\",\r\n      \"targets\": [\r\n        { \"os\": \"default\", \"uri\": \"http://localhost:52665/beatpulse-ui\" }\r\n      ]\r\n    }\r\n  ]\r\n}",
+        "RestoredPayload": "{\"text\":\"The HealthCheck [[LIVENESS]] is recovered. All is up and running\",\"channel\":\"#general\",\"link_names\": 1,\"username\":\"monkey-bot\",\"icon_emoji\":\":monkey_face\" }"
+      }
+    ],
+    "EvaluationTimeInSeconds": 10
+  }
+}
+```
+
+## Configuring Webhooks by code
+
+You can also configure webhooks by using code. This scenario allows greater customization as you can use your own user functions to configure if a payload should be notified and customize [[FAILURE]] and [[DESCRIPTIONS]] bookmarks.
+
+**Sample with default failure message and descriptions**:
+
+```csharp
+setup.AddWebhookNotification("webhook1", uri: "https://healthchecks.requestcatcher.com/",
+            payload: "{ message: \"Webhook report for [[LIVENESS]]: [[FAILURE]] - Description: [[DESCRIPTIONS]]\"}",
+            restorePayload: "{ message: \"[[LIVENESS]] is back to life\"}");
+```
+
+**Sample with custom user functions**:
+
+```csharp
+setup
+.AddWebhookNotification("webhook1",
+    uri: "status/200?code=ax3rt56s", payload: "{ message: \"Webhook report for [[LIVENESS]]: [[FAILURE]] - Description: [[DESCRIPTIONS]]\"}",
+    restorePayload: "{ message: \"[[LIVENESS]] is back to life\"}",
+    shouldNotifyFunc: report => DateTime.UtcNow.Hour >= 8 && DateTime.UtcNow.Hour <= 23
+    customMessageFunc: (report) =>
+    {
+        var failing = report.Entries.Where(e => e.Value.Status == UIHealthStatus.Unhealthy);
+        return $"{failing.Count()} healthchecks are failing";
+    },
+    customDescriptionFunc: report =>
+    {
+        var failing = report.Entries.Where(e => e.Value.Status == UIHealthStatus.Unhealthy);
+        return $"HealthChecks with names {string.Join("/", failing.Select(f => f.Key))} are failing";
+    });
+```
+
 ## Microsoft Teams
 
 If you want to send failure notifications to Microsoft Teams the payload to be used is:
@@ -25,35 +85,9 @@ If you want to send failure notifications to Microsoft Teams the payload to be u
 }
 ```
 
-> HealthCheckUI replace automatically [[LIVENESS]] and [[FAILURE]] bookmarks.
-
-You must escape the json before setting the **Payload** property in the configuration file:
-
-```json
-{
-  "BeatPulse-UI": {
-    "HealthChecks": [
-      {
-        "Name": "HTTP-Api-Basic",
-        "Uri": "http://localhost:6457/health"
-      }
-    ],
-    "Webhooks": [
-      {
-        "Name": "Teams",
-        "Uri": "https://outlook.office.com/webhook/...",
-        "Payload": "{\r\n  \"@context\": \"http://schema.org/extensions\",\r\n  \"@type\": \"MessageCard\",\r\n  \"themeColor\": \"0072C6\",\r\n  \"title\": \"[[LIVENESS]] has failed!\",\r\n  \"text\": \"[[FAILURE]] Click **Learn More** to go to BeatPulseUI Portal\",\r\n  \"potentialAction\": [\r\n    {\r\n      \"@type\": \"OpenUri\",\r\n      \"name\": \"Lear More\",\r\n      \"targets\": [\r\n        { \"os\": \"default\", \"uri\": \"http://localhost:52665/beatpulse-ui\" }\r\n      ]\r\n    }\r\n  ]\r\n}",
-        "RestoredPayload": "{\"text\":\"The HealthCheck [[LIVENESS]] is recovered. All is up and running\",\"channel\":\"#general\",\"link_names\": 1,\"username\":\"monkey-bot\",\"icon_emoji\":\":monkey_face\" }"
-      }
-    ],
-    "EvaluationTimeOnSeconds": 10
-  }
-}
-```
-
 ## Azure Functions
 
-You can use [Azure Functions](https://docs.microsoft.com/en-us/azure/azure-functions/) to receive *HealthCheckUI* notifications and perform any action. 
+You can use [Azure Functions](https://docs.microsoft.com/en-us/azure/azure-functions/) to receive _HealthCheckUI_ notifications and perform any action.
 
 Next samples show AF integration with Twilio to send SMS / SendGrid for HealthCheckUI failure notifications.
 
@@ -81,7 +115,7 @@ public static async Task Run(HttpRequestMessage req, IAsyncCollector<SMSMessage>
 
 ```
 
-```c# 
+```c#
 #r "SendGrid"
 using System;
 using SendGrid.Helpers.Mail;
@@ -118,7 +152,7 @@ public static async Task Run(HttpRequestMessage req, IAsyncCollector<Mail> messa
 
 ```json
 {
-  "HealthChecks-UI": {
+  "HealthChecksUI": {
     "HealthChecks": [
       {
         "Name": "HTTP-Api-Basic",
@@ -132,7 +166,7 @@ public static async Task Run(HttpRequestMessage req, IAsyncCollector<Mail> messa
         "Payload": "{\"HealthCheck\": \"[[LIVENESS]]\",\"message\": \"[[FAILURE]]\"}"
       }
     ],
-    "EvaluationTimeOnSeconds": 10
+    "EvaluationTimeInSeconds": 10
   }
 }
 ```
@@ -157,7 +191,7 @@ And the HealthChecksUI configuration:
 
 ```json
 {
-  "HealthChecks-UI": {
+  "HealthChecksUI": {
     "HealthChecks": [
       {
         "Name": "HTTP-Api-Basic",
@@ -172,7 +206,7 @@ And the HealthChecksUI configuration:
         "RestoredPayload": "{\"text\":\"The HealthCheck [[LIVENESS]] is recovered. All is up and running\",\"channel\":\"#general\",\"link_names\": 1,\"username\":\"monkey-bot\",\"icon_emoji\":\":monkey_face\" }"
       }
     ],
-    "EvaluationTimeOnSeconds": 10
+    "EvaluationTimeInSeconds": 10
   }
 }
 ```

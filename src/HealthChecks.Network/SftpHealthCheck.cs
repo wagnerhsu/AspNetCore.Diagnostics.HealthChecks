@@ -23,7 +23,12 @@ namespace HealthChecks.Network
             {
                 foreach (var item in _options.ConfiguredHosts.Values)
                 {
-                    var connectionInfo = new ConnectionInfo(item.Host, item.UserName, item.AuthenticationMethods.ToArray());
+                    var connectionInfo = new ConnectionInfo(item.Host, item.Port, item.UserName, item.AuthenticationMethods.ToArray());
+
+                    if (context.Registration.Timeout > TimeSpan.Zero)
+                    {
+                        connectionInfo.Timeout = context.Registration.Timeout;
+                    }
 
                     using (var sftpClient = new SftpClient(connectionInfo))
                     {
@@ -50,7 +55,6 @@ namespace HealthChecks.Network
 
                 return Task.FromResult(
                     HealthCheckResult.Healthy());
-
             }
             catch (Exception ex)
             {

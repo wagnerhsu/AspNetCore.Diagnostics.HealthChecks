@@ -9,7 +9,6 @@ namespace Microsoft.Extensions.DependencyInjection
     public static class SignalRHealthCheckBuilderExtensions
     {
         const string NAME = "signalr";
-
         /// <summary>
         /// Add a health check for SignalR.
         /// </summary>
@@ -21,10 +20,11 @@ namespace Microsoft.Extensions.DependencyInjection
         /// the default status of <see cref="HealthStatus.Unhealthy"/> will be reported.
         /// </param>
         /// <param name="tags">A list of tags that can be used to filter sets of health checks. Optional.</param>
-        /// <returns>The <see cref="IHealthChecksBuilder"/>.</returns></param>
-        public static IHealthChecksBuilder AddSignalRHub(this IHealthChecksBuilder builder, string url, string name = default, HealthStatus? failureStatus = default, IEnumerable<string> tags = default)
+        /// <param name="timeout">An optional System.TimeSpan representing the timeout of the check.</param>
+        /// <returns>The <see cref="IHealthChecksBuilder"/>.</returns>
+        public static IHealthChecksBuilder AddSignalRHub(this IHealthChecksBuilder builder, string url, string name = default, HealthStatus? failureStatus = default, IEnumerable<string> tags = default, TimeSpan? timeout = default)
         {
-            Func<HubConnection> hubConnectionBuilder = () => 
+            Func<HubConnection> hubConnectionBuilder = () =>
                 new HubConnectionBuilder()
                     .WithUrl(url)
                     .Build();
@@ -34,9 +34,9 @@ namespace Microsoft.Extensions.DependencyInjection
                     name ?? NAME,
                     sp => new SignalRHealthCheck(hubConnectionBuilder),
                     failureStatus,
-                    tags));
+                    tags,
+                    timeout));
         }
-
         /// <summary>
         /// Add a health check for SignalR.
         /// </summary>
@@ -48,15 +48,17 @@ namespace Microsoft.Extensions.DependencyInjection
         /// the default status of <see cref="HealthStatus.Unhealthy"/> will be reported.
         /// </param>
         /// <param name="tags">A list of tags that can be used to filter sets of health checks. Optional.</param>
-        /// <returns>The <see cref="IHealthChecksBuilder"/>.</returns></param>
-        public static IHealthChecksBuilder AddSignalRHub(this IHealthChecksBuilder builder, Func<HubConnection> hubConnectionBuilder, string name = default, HealthStatus? failureStatus = default, IEnumerable<string> tags = default)
+        /// <param name="timeout">An optional System.TimeSpan representing the timeout of the check.</param>
+        /// <returns>The <see cref="IHealthChecksBuilder"/>.</returns>
+        public static IHealthChecksBuilder AddSignalRHub(this IHealthChecksBuilder builder, Func<HubConnection> hubConnectionBuilder, string name = default, HealthStatus? failureStatus = default, IEnumerable<string> tags = default, TimeSpan? timeout = default)
         {
             return builder.Add(
                 new HealthCheckRegistration(
                     name ?? NAME,
                     sp => new SignalRHealthCheck(hubConnectionBuilder),
                     failureStatus,
-                    tags));
+                    tags,
+                    timeout));
         }
     }
 }

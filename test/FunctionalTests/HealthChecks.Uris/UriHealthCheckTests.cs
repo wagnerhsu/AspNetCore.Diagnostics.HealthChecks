@@ -151,7 +151,7 @@ namespace FunctionalTests.HealthChecks.Uris
               .ConfigureServices(services =>
               {
                   services.AddHealthChecks()
-                   .AddUrlGroup(opt=>
+                   .AddUrlGroup(opt =>
                    {
                        opt.AddUri(uri, setup => setup.UseTimeout(TimeSpan.FromSeconds(1)));
                    }, tags: new string[] { "uris" });
@@ -190,7 +190,7 @@ namespace FunctionalTests.HealthChecks.Uris
               })
               .Configure(app =>
               {
-                  app.UseHealthChecks("/health", new HealthCheckOptions()
+                  app.UseHealthChecks("/health", new HealthCheckOptions
                   {
                       Predicate = r => r.Tags.Contains("uris")
                   });
@@ -222,7 +222,7 @@ namespace FunctionalTests.HealthChecks.Uris
               })
               .Configure(app =>
               {
-                  app.UseHealthChecks("/health", new HealthCheckOptions()
+                  app.UseHealthChecks("/health", new HealthCheckOptions
                   {
                       Predicate = r => r.Tags.Contains("uris")
                   });

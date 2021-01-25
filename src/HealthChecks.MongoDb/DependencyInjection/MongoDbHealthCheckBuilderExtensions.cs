@@ -1,14 +1,14 @@
 ﻿using HealthChecks.MongoDb;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using System.Collections.Generic;
 using MongoDB.Driver;
+using System;
+using System.Collections.Generic;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
     public static class MongoDbHealthCheckBuilderExtensions
     {
         const string NAME = "mongodb";
-
         /// <summary>
         /// Add a health check for MongoDb database that list all databases on the system.
         /// </summary>
@@ -20,16 +20,17 @@ namespace Microsoft.Extensions.DependencyInjection
         /// the default status of <see cref="HealthStatus.Unhealthy"/> will be reported.
         /// </param>
         /// <param name="tags">A list of tags that can be used to filter sets of health checks. Optional.</param>
+        /// <param name="timeout">An optional System.TimeSpan representing the timeout of the check.</param>
         /// <returns>The <see cref="IHealthChecksBuilder"/>.</returns>
-        public static IHealthChecksBuilder AddMongoDb(this IHealthChecksBuilder builder, string mongodbConnectionString, string name = default, HealthStatus? failureStatus = default, IEnumerable<string> tags = default)
+        public static IHealthChecksBuilder AddMongoDb(this IHealthChecksBuilder builder, string mongodbConnectionString, string name = default, HealthStatus? failureStatus = default, IEnumerable<string> tags = default, TimeSpan? timeout = default)
         {
             return builder.Add(new HealthCheckRegistration(
                 name ?? NAME,
                 sp => new MongoDbHealthCheck(mongodbConnectionString),
                 failureStatus,
-                tags));
+                tags,
+                timeout));
         }
-
         /// <summary>
         /// Add a health check for MongoDb database that list all collections from specified database on <paramref name="mongoDatabaseName"/>.
         /// </summary>
@@ -42,16 +43,17 @@ namespace Microsoft.Extensions.DependencyInjection
         /// the default status of <see cref="HealthStatus.Unhealthy"/> will be reported.
         /// </param>
         /// <param name="tags">A list of tags that can be used to filter sets of health checks. Optional.</param>
+        /// <param name="timeout">An optional System.TimeSpan representing the timeout of the check.</param>
         /// <returns>The <see cref="IHealthChecksBuilder"/>.</returns>
-        public static IHealthChecksBuilder AddMongoDb(this IHealthChecksBuilder builder, string mongodbConnectionString, string mongoDatabaseName, string name = default, HealthStatus? failureStatus = default, IEnumerable<string> tags = default)
+        public static IHealthChecksBuilder AddMongoDb(this IHealthChecksBuilder builder, string mongodbConnectionString, string mongoDatabaseName, string name = default, HealthStatus? failureStatus = default, IEnumerable<string> tags = default, TimeSpan? timeout = default)
         {
             return builder.Add(new HealthCheckRegistration(
                 name ?? NAME,
                 sp => new MongoDbHealthCheck(mongodbConnectionString, mongoDatabaseName),
                 failureStatus,
-                tags));
+                tags,
+                timeout));
         }
-
         /// <summary>
         /// Add a health check for MongoDb database that list all collections from specified database on <paramref name="mongoDatabaseName"/>.
         /// </summary>
@@ -63,16 +65,17 @@ namespace Microsoft.Extensions.DependencyInjection
         /// the default status of <see cref="HealthStatus.Unhealthy"/> will be reported.
         /// </param>
         /// <param name="tags">A list of tags that can be used to filter sets of health checks. Optional.</param>
+        /// <param name="timeout">An optional System.TimeSpan representing the timeout of the check.</param>
         /// <returns>The <see cref="IHealthChecksBuilder"/>.</returns>
-        public static IHealthChecksBuilder AddMongoDb(this IHealthChecksBuilder builder, MongoClientSettings mongoClientSettings, string name = default, HealthStatus? failureStatus = default, IEnumerable<string> tags = default)
+        public static IHealthChecksBuilder AddMongoDb(this IHealthChecksBuilder builder, MongoClientSettings mongoClientSettings, string name = default, HealthStatus? failureStatus = default, IEnumerable<string> tags = default, TimeSpan? timeout = default)
         {
             return builder.Add(new HealthCheckRegistration(
                 name ?? NAME,
                 sp => new MongoDbHealthCheck(mongoClientSettings),
                 failureStatus,
-                tags));
+                tags,
+                timeout));
         }
-
         /// <summary>
         /// Add a health check for MongoDb database that list all collections from specified database on <paramref name="mongoDatabaseName"/>.
         /// </summary>
@@ -85,14 +88,16 @@ namespace Microsoft.Extensions.DependencyInjection
         /// the default status of <see cref="HealthStatus.Unhealthy"/> will be reported.
         /// </param>
         /// <param name="tags">A list of tags that can be used to filter sets of health checks. Optional.</param>
+        /// <param name="timeout">An optional System.TimeSpan representing the timeout of the check.</param>
         /// <returns>The <see cref="IHealthChecksBuilder"/>.</returns>
-        public static IHealthChecksBuilder AddMongoDb(this IHealthChecksBuilder builder, MongoClientSettings mongoClientSettings, string mongoDatabaseName, string name = default, HealthStatus? failureStatus = default, IEnumerable<string> tags = default)
+        public static IHealthChecksBuilder AddMongoDb(this IHealthChecksBuilder builder, MongoClientSettings mongoClientSettings, string mongoDatabaseName, string name = default, HealthStatus? failureStatus = default, IEnumerable<string> tags = default, TimeSpan? timeout = default)
         {
             return builder.Add(new HealthCheckRegistration(
                 name ?? NAME,
                 sp => new MongoDbHealthCheck(mongoClientSettings, mongoDatabaseName),
                 failureStatus,
-                tags));
+                tags,
+                timeout));
         }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using FluentAssertions;
 using FunctionalTests.Base;
+using HealthChecks.Network;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Hosting;
@@ -20,7 +21,7 @@ namespace FunctionalTests.HealthChecks.Network
 
         public ping_healthcheck_should(ExecutionFixture fixture)
         {
-            _fixture = fixture ?? throw new ArgumentNullException(nameof(fixture)); ;
+            _fixture = fixture ?? throw new ArgumentNullException(nameof(fixture));
         }
 
         [Fact]

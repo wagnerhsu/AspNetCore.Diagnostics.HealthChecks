@@ -1,11 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore;
+﻿using HealthChecks.UI.Image.Configuration;
+using HealthChecks.UI.Image.Extensions;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace HealthChecks.UI.Image
@@ -14,11 +10,30 @@ namespace HealthChecks.UI.Image
     {
         public static void Main(string[] args)
         {
-            CreateWebHostBuilder(args).Build().Run();
+            CreateHostBuilder(args).Build().Run();
         }
 
-        public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
-            WebHost.CreateDefaultBuilder(args)
-                .UseStartup<Startup>();
+        public static IHostBuilder CreateHostBuilder(string[] args)
+        {
+            return Host.CreateDefaultBuilder(args)
+                .ConfigureWebHostDefaults(webBuilder =>
+                {
+                    webBuilder
+                    .ConfigureLogging(config =>
+                    {
+                        config.AddFilter(typeof(Program).Namespace, LogLevel.Information);
+                    })
+                    .ConfigureAppConfiguration((context, builder) =>
+                    {
+                        if (AzureAppConfiguration.Enabled)
+                        {
+                            builder.UseAzureAppConfiguration();
+                        }
+
+                    })
+                    .UseStartup<Startup>();
+                });
+
+        }
     }
 }

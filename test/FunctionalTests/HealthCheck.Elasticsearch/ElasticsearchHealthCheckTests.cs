@@ -18,7 +18,7 @@ namespace FunctionalTests.HealthChecks.Elasticsearch
         private readonly ExecutionFixture _fixture;
 
         public elasticsearch_healthcheck_should(ExecutionFixture fixture)
-        { 
+        {
             _fixture = fixture ?? throw new ArgumentNullException(nameof(fixture));
         }
 
@@ -59,7 +59,7 @@ namespace FunctionalTests.HealthChecks.Elasticsearch
            .ConfigureServices(services =>
            {
                services.AddHealthChecks()
-                .AddRabbitMQ("nonexistingdomain:9200", tags: new string[] { "elasticsearch" });
+                .AddElasticsearch("nonexistingdomain:9200", tags: new string[] { "elasticsearch" });
            })
            .Configure(app =>
            {

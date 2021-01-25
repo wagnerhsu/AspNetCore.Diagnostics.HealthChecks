@@ -11,11 +11,12 @@ namespace HealthChecks.EventStore
         : IHealthCheck
     {
         const string CONNECTION_NAME = "AspNetCore HealthCheck Connection";
+        const int ELAPSED_DELAY_MILLISECONDS = 500;
+        const int RECONNECTION_LIMIT = 1;
 
         private readonly string _eventStoreConnection;
         private readonly string _login;
         private readonly string _password;
-
         public EventStoreHealthCheck(string eventStoreConnection, string login, string password)
         {
             _eventStoreConnection = eventStoreConnection ?? throw new ArgumentNullException(nameof(eventStoreConnection));
@@ -26,32 +27,64 @@ namespace HealthChecks.EventStore
         {
             try
             {
-                var eventStoreUri = new Uri(_eventStoreConnection);
-
-                ConnectionSettings connectionSettings;
+                ConnectionSettingsBuilder connectionSettings;
 
                 if (string.IsNullOrEmpty(_login) || string.IsNullOrEmpty(_password))
                 {
                     connectionSettings = ConnectionSettings.Create()
-                        .KeepRetrying()
-                        .Build();
+                        .LimitReconnectionsTo(RECONNECTION_LIMIT)
+                        .SetReconnectionDelayTo(TimeSpan.FromMilliseconds(ELAPSED_DELAY_MILLISECONDS));
                 }
                 else
                 {
                     connectionSettings = ConnectionSettings.Create()
-                        .KeepRetrying()
-                        .SetDefaultUserCredentials(new UserCredentials(_login, _password))
-                        .Build();
+                        .LimitReconnectionsTo(RECONNECTION_LIMIT)
+                        .SetReconnectionDelayTo(TimeSpan.FromMilliseconds(ELAPSED_DELAY_MILLISECONDS))
+                        .SetDefaultUserCredentials(new UserCredentials(_login, _password));
                 }
 
-                var connection = EventStoreConnection.Create(
+                using (var connection = EventStoreConnection.Create(
+                    _eventStoreConnection,
                     connectionSettings,
-                    eventStoreUri,
-                    CONNECTION_NAME);
+                    CONNECTION_NAME))
+                {
+                    var tcs = new TaskCompletionSource<HealthCheckResult>();
 
-                await connection.ConnectAsync();
+                    //connected
+                    connection.Connected += (s, e) =>
+                    {
+                        tcs.TrySetResult(HealthCheckResult.Healthy());
+                    };
 
-                return HealthCheckResult.Healthy();
+                    //connection closed after configured amount of failed reconnections
+                    connection.Closed += (s, e) =>
+                    {
+                        tcs.TrySetResult(new HealthCheckResult(
+                            status: context.Registration.FailureStatus,
+                            description: e.Reason));
+                    };
+
+                    //connection error
+                    connection.ErrorOccurred += (s, e) =>
+                    {
+                        tcs.TrySetResult(new HealthCheckResult(
+                            status: context.Registration.FailureStatus,
+                            exception: e.Exception));
+                    };
+
+                    using (cancellationToken.Register(() => connection.Close()))
+                    {
+                        //completes after tcp connection init, but before successful connection and login
+                        await connection.ConnectAsync();
+                    }
+
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    using (cancellationToken.Register(() => tcs.TrySetCanceled()))
+                    {
+                        return await tcs.Task;
+                    }
+                }
             }
             catch (Exception ex)
             {

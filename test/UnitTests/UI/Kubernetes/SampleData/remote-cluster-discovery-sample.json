@@ -157,6 +157,56 @@
       "status": {
         "loadBalancer": {}
       }
+    },
+    {
+      "metadata": {
+        "name": "seq",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/services/seq",
+        "uid": "7e1071b4-29c7-422e-80e3-326129590a30",
+        "resourceVersion": "134427",
+        "creationTimestamp": "2019-07-12T02:42:38Z",
+        "labels": {
+          "HealthChecks": "true",
+          "app": "seq"
+        },
+        "annotations": {
+          "HealthChecksPath": "/custom/health/path",
+          "HealthChecksPort": "healthcheck",
+          "HealthChecksScheme": "https"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "ingestion",
+            "protocol": "TCP",
+            "port": 5341,
+            "targetPort": "ingestion"
+          },
+          {
+            "name": "http",
+            "protocol": "TCP",
+            "port": 80,
+            "targetPort": "ui"
+          },
+          {
+            "name": "healthcheck",
+            "protocol": "TCP",
+            "port": 8080,
+            "targetPort": "healthcheck"
+          }
+        ],
+        "selector": {
+          "app": "seq"
+        },
+        "clusterIP": "10.152.183.35",
+        "type": "ClusterIP",
+        "sessionAffinity": "None"
+      },
+      "status": {
+        "loadBalancer": {}
+      }
     }
   ]
 }

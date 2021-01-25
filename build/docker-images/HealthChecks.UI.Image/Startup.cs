@@ -1,8 +1,10 @@
-﻿using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
+﻿using HealthChecks.UI.Image.Configuration;
+using HealthChecks.UI.Image.PushService;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using System;
 
 namespace HealthChecks.UI.Image
 {
@@ -19,16 +21,27 @@ namespace HealthChecks.UI.Image
         {
             services
                 .AddHealthChecksUI()
+                .AddStorageProvider(Configuration)
                 .AddMvc()
-                .SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
+                .SetCompatibilityVersion(CompatibilityVersion.Version_3_0);
+
+            if (bool.TryParse(Configuration[PushServiceKeys.Enabled], out bool enabled) && enabled)
+            {
+                if (string.IsNullOrEmpty(Configuration[PushServiceKeys.PushEndpointSecret]))
+                {
+                    throw new Exception($"{PushServiceKeys.PushEndpointSecret} environment variable has not been configured");
+                }
+                services.AddTransient<HealthChecksPushService>();
+            }
         }
-
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(IApplicationBuilder app)
         {
-            
-
-            app.UseHealthChecksUI()
-                .UseMvc();
+            app.UseRouting()
+                .UseEndpoints(config =>
+                {
+                    config.MapHealthChecksUI(Configuration);
+                    config.MapDefaultControllerRoute();
+                });
         }
     }
 }

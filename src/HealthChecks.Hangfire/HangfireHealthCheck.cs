@@ -10,10 +10,10 @@ namespace HealthChecks.Hangfire
     public class HangfireHealthCheck
         : IHealthCheck
     {
-        private readonly HangfireOptions _hangfireOptions = new HangfireOptions();
+        private readonly HangfireOptions _hangfireOptions;
         public HangfireHealthCheck(HangfireOptions hangfireOptions)
         {
-            _hangfireOptions = hangfireOptions;
+            _hangfireOptions = hangfireOptions ?? throw new ArgumentNullException(nameof(hangfireOptions));
         }
         public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
         {
@@ -27,7 +27,7 @@ namespace HealthChecks.Hangfire
                     var failedJobsCount = hangfireMonitoringApi.FailedCount();
                     if (failedJobsCount >= _hangfireOptions.MaximumJobsFailed)
                     {
-                        errorList.Add($"Hangfire have #{failedJobsCount} failed jobs and the maximun available is {_hangfireOptions.MaximumJobsFailed}.");
+                        errorList.Add($"Hangfire has #{failedJobsCount} failed jobs and the maximum available is {_hangfireOptions.MaximumJobsFailed}.");
                     }
                 }
 
@@ -44,7 +44,7 @@ namespace HealthChecks.Hangfire
                 {
                     return Task.FromResult(new HealthCheckResult(context.Registration.FailureStatus, description: string.Join(" + ", errorList)));
                 }
-                    
+
                 return Task.FromResult(HealthCheckResult.Healthy());
             }
             catch (Exception ex)

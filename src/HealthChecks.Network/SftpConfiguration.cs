@@ -9,13 +9,12 @@ namespace HealthChecks.Network
 {
     public class SftpConfigurationBuilder
     {
-        private string _host;
-        private int _port;
-        private string _userName;
+        private readonly string _host;
+        private readonly int _port;
+        private readonly string _userName;
         private (bool createFile, string remotePath) _fileCreationOptions = (false, string.Empty);
 
         internal List<AuthenticationMethod> AuthenticationMethods { get; } = new List<AuthenticationMethod>();
-
         public SftpConfigurationBuilder(string host, int port, string userName)
         {
             _host = host ?? throw new ArgumentNullException(nameof(host));
@@ -25,14 +24,13 @@ namespace HealthChecks.Network
             _port = port;
         }
         public SftpConfigurationBuilder AddPasswordAuthentication(string password)
-        {   
+        {
             AuthenticationMethods.Add(new PasswordAuthenticationMethod(_userName, password));
 
             return this;
         }
-
         public SftpConfigurationBuilder AddPrivateKeyAuthentication(string privateKey, string passphrase)
-        {            
+        {
             if (string.IsNullOrEmpty(privateKey)) throw new ArgumentNullException(nameof(privateKey));
             if (string.IsNullOrEmpty(passphrase)) throw new ArgumentNullException(nameof(passphrase));
 
@@ -50,22 +48,20 @@ namespace HealthChecks.Network
 
             return this;
         }
-
         public SftpConfigurationBuilder CreateFileOnConnect(string remoteFilePath)
         {
             _fileCreationOptions = (true, remoteFilePath);
             return this;
         }
-
         public SftpConfiguration Build()
         {
-            if(!AuthenticationMethods.Any())
+            if (!AuthenticationMethods.Any())
             {
                 throw new Exception("No AuthenticationMethods have been configured for Sftp Configuration");
             }
 
-            var sftpConfiguration =  new SftpConfiguration(_host, _port, _userName, AuthenticationMethods);
-            if(_fileCreationOptions.createFile)
+            var sftpConfiguration = new SftpConfiguration(_host, _port, _userName, AuthenticationMethods);
+            if (_fileCreationOptions.createFile)
             {
                 sftpConfiguration.CreateRemoteFile(_fileCreationOptions.remotePath);
             }
@@ -73,12 +69,11 @@ namespace HealthChecks.Network
             return sftpConfiguration;
         }
     }
-
     public class SftpConfiguration
     {
         internal string Host { get; }
         internal string UserName { get; set; }
-        internal int Port { get; }
+        internal int Port { get; } = 22;
         internal List<AuthenticationMethod> AuthenticationMethods { get; }
         internal (bool createFile, string remoteFilePath) FileCreationOptions = (false, string.Empty);
 
@@ -89,12 +84,9 @@ namespace HealthChecks.Network
             UserName = userName;
             AuthenticationMethods = authenticationMethods;
         }
-
         internal void CreateRemoteFile(string remoteFilePath)
         {
             FileCreationOptions = (true, remoteFilePath);
         }
     }
-    
-
 }

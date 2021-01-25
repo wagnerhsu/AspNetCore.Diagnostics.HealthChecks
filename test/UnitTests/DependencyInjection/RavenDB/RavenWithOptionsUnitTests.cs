@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 using System.Linq;
 using Xunit;
 
-namespace UnitTests.DependencyInjection.RavenDB
+namespace UnitTests.HealthChecks.DependencyInjection.RavenDB
 {
     public class ravendb_with_options_registration_should
     {
@@ -15,7 +15,7 @@ namespace UnitTests.DependencyInjection.RavenDB
         {
             var services = new ServiceCollection();
             services.AddHealthChecks()
-                .AddRavenDB(_ => { _.Urls = new[] {"http://localhost:8080", "http://localhost:8081"}; });
+                .AddRavenDB(_ => { _.Urls = new[] { "http://localhost:8080", "http://localhost:8081" }; });
 
             var serviceProvider = services.BuildServiceProvider();
             var options = serviceProvider.GetService<IOptions<HealthCheckServiceOptions>>();
@@ -32,7 +32,7 @@ namespace UnitTests.DependencyInjection.RavenDB
         {
             var services = new ServiceCollection();
             services.AddHealthChecks()
-                .AddRavenDB(_ => { _.Urls = new[] {"http://localhost:8080", "http://localhost:8081"}; },
+                .AddRavenDB(_ => { _.Urls = new[] { "http://localhost:8080", "http://localhost:8081" }; },
                     name: "my-ravendb");
 
             var serviceProvider = services.BuildServiceProvider();

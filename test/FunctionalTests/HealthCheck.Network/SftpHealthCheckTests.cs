@@ -39,7 +39,7 @@ namespace FunctionalTests.HealthChecks.Network
                                         .Build();
 
                         setup.AddHost(cfg);
-                    }, tags: new string[] { "sftp" });
+                    }, tags: new string[] { "sftp" }, timeout: TimeSpan.FromSeconds(5));
                })
                .Configure(app =>
                {
@@ -197,8 +197,41 @@ namespace FunctionalTests.HealthChecks.Network
 
             var response = await server.CreateRequest("/health")
                 .GetAsync();
-        
+
             response.EnsureSuccessStatusCode();
+        }
+
+        [SkipOnAppVeyor]
+        public async Task be_unhealthy_when_using_wrong_port()
+        {
+            var webHostBuilder = new WebHostBuilder()
+               .UseStartup<DefaultStartup>()
+               .ConfigureServices(services =>
+               {
+                   services.AddHealthChecks()
+                    .AddSftpHealthCheck(setup =>
+                    {
+                        var cfg = new SftpConfigurationBuilder("localhost", 5551, "foo")
+                                        .AddPasswordAuthentication("pass")
+                                        .Build();
+
+                        setup.AddHost(cfg);
+                    }, tags: new string[] { "sftp" });
+               })
+               .Configure(app =>
+               {
+                   app.UseHealthChecks("/health", new HealthCheckOptions()
+                   {
+                       Predicate = r => r.Tags.Contains("sftp")
+                   });
+               });
+
+            var server = new TestServer(webHostBuilder);
+
+            var response = await server.CreateRequest("/health")
+                .GetAsync();
+
+            response.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
         }
     }
 }

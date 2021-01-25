@@ -1,56 +1,61 @@
-import React from "react";
-import { Route, Link } from "react-router-dom";
-import { LivenessPage } from "./components/LivenessPage";
-import { WebhooksPage } from "./components/WebhooksPage";
-import { scaleRotate as Menu } from "react-burger-menu";
+import React, { FunctionComponent, useEffect, useState } from 'react';
+import { NavLink } from 'react-router-dom';
+import { AsideMenu } from './components/AsideMenu';
+import WhiteGearIcon from '../assets/svg/white-gear.svg';
+import WhiteHeartIcon from '../assets/svg/heart-check.svg';
+import { UISettings } from './config/UISettings';
+import Routes from './routes/Routes';
+import fetchers from './api/fetchers';
+import { AlertPanel } from './components/AlertPanel';
+import { useQuery } from 'react-query';
+
 
 interface AppProps {
-    mountPath: string;
-    apiEndpoint: string;
-    webhookEndpoint: string;
+    uiSettings: UISettings;
 }
 
-interface AppState {
-    menuOpen: boolean;
+const App: FunctionComponent<AppProps> = ({ uiSettings }) => {
+
+    const [asidemenuOpened, setAsideMenu] = useState<boolean>(uiSettings.asideMenuOpened);
+    const { data: apiSettings, isError } = useQuery("uiApiSettings", fetchers.getUIApiSettings, { retry: 1 });
+
+    const toggleMenu = () => {
+        setAsideMenu(!asidemenuOpened);
+    };
+
+    if (isError) {
+        return <AlertPanel message="Error retrivieng UI api settings from endpoint" />
+    }
+
+    if (!apiSettings) return null;
+
+    return (
+        <main id="outer-container">
+            <AsideMenu
+                isOpen={asidemenuOpened}
+                onClick={() => toggleMenu()}>
+                <NavLink
+                    to="/healthchecks"
+                    className="hc-aside-menu__item"
+                    activeClassName="hc-aside-menu__item--active"
+                >
+                    <img alt="icon heart check" className="hc-menu-icon" src={WhiteHeartIcon} />
+                    <span>Health Checks</span>
+                </NavLink>
+                <NavLink
+                    to="/webhooks"
+                    className="hc-aside-menu__item"
+                    activeClassName="hc-aside-menu__item--active"
+                >
+                    <img alt="icon gear" className="hc-menu-icon" src={WhiteGearIcon} />
+                    <span>Webhooks</span>
+                </NavLink>
+            </AsideMenu>
+            <section className="hc-section-router">
+                <Routes apiSettings={apiSettings} />
+            </section>
+        </main>
+    );
 }
 
-const WhiteGearIcon = require("../assets/svg/white-gear.svg");
-const WhiteHeartIcon = require("../assets/svg/white-heart.svg");
-
-export class App extends React.Component<AppProps, AppState> {
-    constructor(props: AppProps) {
-        super(props);
-        this.state = {
-            menuOpen: false
-        };
-
-        this.toggleMenu = this.toggleMenu.bind(this);
-    }
-
-    toggleMenu() {
-        this.setState({
-            menuOpen: !this.state.menuOpen
-        });
-    }
-    render() {
-        return <React.Fragment>
-            <div id="outer-container" style={{ height: '100%' }}>
-                <Menu onStateChange={(state) => this.setState({ menuOpen: state.isOpen })}
-                    isOpen={this.state.menuOpen}
-                    pageWrapId={'wrapper'}
-                    outerContainerId={"outer-container"} >
-                    <Link to={this.props.mountPath} className="menu-item" onClick={this.toggleMenu}>
-                        <img className="menu-icon" src={WhiteHeartIcon} />
-                        <div>Health Checks</div>
-                    </Link>
-                    <Link to={`${this.props.mountPath}/webhooks`} className="menu-item" onClick={this.toggleMenu}>
-                        <img className="menu-icon" src={WhiteGearIcon} />
-                        <div>Webhooks</div>
-                    </Link>
-                </Menu>
-                <Route exact path={this.props.mountPath} render={() => <LivenessPage endpoint={this.props.apiEndpoint} />} />
-                <Route path={`${this.props.mountPath}/webhooks`} render={() => <WebhooksPage endpoint={this.props.webhookEndpoint} />} />
-            </div>            
-        </React.Fragment>
-    }
-}
+export { App };

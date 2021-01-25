@@ -1,7 +1,9 @@
-﻿using HealthChecks.UI.Core.Data;
+﻿using HealthChecks.UI.Configuration;
+using HealthChecks.UI.Core.Data;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Serialization;
@@ -17,11 +19,13 @@ namespace HealthChecks.UI.Middleware
         private readonly RequestDelegate _next;
         private readonly JsonSerializerSettings _jsonSerializationSettings;
         private readonly IServiceScopeFactory _serviceScopeFactory;
+        private readonly Settings _settings;
 
-        public UIApiEndpointMiddleware(RequestDelegate next, IServiceScopeFactory serviceScopeFactory)
+        public UIApiEndpointMiddleware(RequestDelegate next, IServiceScopeFactory serviceScopeFactory, IOptions<Settings> settings)
         {
             _next = next;
             _serviceScopeFactory = serviceScopeFactory;
+            _settings = settings?.Value ?? throw new ArgumentNullException(nameof(settings));
             _jsonSerializationSettings = new JsonSerializerSettings()
             {
                 ContractResolver = new CamelCasePropertyNamesContractResolver(),
@@ -41,15 +45,21 @@ namespace HealthChecks.UI.Middleware
 
                 foreach (var item in healthChecks.OrderBy(h => h.Id))
                 {
+
                     var execution = await db.Executions
-                        .Include(le => le.History)
-                        .Include(le => le.Entries)
-                        .Where(le => le.Name == item.Name)
-                        .AsNoTracking()
-                        .SingleOrDefaultAsync();
+                                .Include(le => le.Entries)
+                                .Where(le => le.Name == item.Name)
+                                .AsNoTracking()
+                                .SingleOrDefaultAsync();
 
                     if (execution != null)
                     {
+                        execution.History = await db.HealthCheckExecutionHistories
+                            .Where(eh => EF.Property<int>(eh, "HealthCheckExecutionId") == execution.Id)
+                            .OrderByDescending(eh => eh.On)
+                            .Take(_settings.MaximumExecutionHistoriesPerEndpoint)
+                             .ToListAsync();
+
                         healthChecksExecutions.Add(execution);
                     }
                 }

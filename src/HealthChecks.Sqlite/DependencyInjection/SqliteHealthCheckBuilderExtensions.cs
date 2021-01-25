@@ -1,5 +1,6 @@
 ﻿using HealthChecks.Sqlite;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using System;
 using System.Collections.Generic;
 
 namespace Microsoft.Extensions.DependencyInjection
@@ -7,7 +8,6 @@ namespace Microsoft.Extensions.DependencyInjection
     public static class SqliteHealthCheckBuilderExtensions
     {
         const string NAME = "sqlite";
-
         /// <summary>
         /// Add a health check for Sqlite services.
         /// </summary>
@@ -20,14 +20,17 @@ namespace Microsoft.Extensions.DependencyInjection
         /// the default status of <see cref="HealthStatus.Unhealthy"/> will be reported.
         /// </param>
         /// <param name="tags">A list of tags that can be used to filter sets of health checks. Optional.</param>
-        /// <returns>The <see cref="IHealthChecksBuilder"/>.</returns></param>
-        public static IHealthChecksBuilder AddSqlite(this IHealthChecksBuilder builder, string sqliteConnectionString, string healthQuery = "select name from sqlite_master where type='table'", string name = default, HealthStatus? failureStatus = default, IEnumerable<string> tags = default)
+        /// <param name="timeout">An optional System.TimeSpan representing the timeout of the check.</param>
+        /// <returns>The <see cref="IHealthChecksBuilder"/>.</returns>
+
+        public static IHealthChecksBuilder AddSqlite(this IHealthChecksBuilder builder, string sqliteConnectionString, string healthQuery = "select name from sqlite_master where type='table'", string name = default, HealthStatus? failureStatus = default, IEnumerable<string> tags = default, TimeSpan? timeout = default)
         {
             return builder.Add(new HealthCheckRegistration(
                 name ?? NAME,
                 sp => new SqliteHealthCheck(sqliteConnectionString, healthQuery),
                 failureStatus,
-                tags));
+                tags,
+                timeout));
         }
     }
 }

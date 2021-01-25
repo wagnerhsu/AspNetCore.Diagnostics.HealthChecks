@@ -15,6 +15,7 @@ namespace HealthChecks.UI.Core
     {
         private readonly JsonSerializerSettings _jsonSerializationSettings;
         private readonly IServiceScopeFactory _serviceScopeFactory;
+
         public UIWebHooksApiMiddleware(RequestDelegate next, IServiceScopeFactory serviceScopeFactory)
         {
             _jsonSerializationSettings = new JsonSerializerSettings()
@@ -31,7 +32,6 @@ namespace HealthChecks.UI.Core
                 var sanitizedWebhooksResponse = settings.Value.Webhooks.Select(item => new
                 {
                     item.Name,
-                    item.Uri,
                     Payload = string.IsNullOrEmpty(item.Payload) ? new JObject() : JObject.Parse(Regex.Unescape(item.Payload))
                 });
                 context.Response.ContentType = Keys.DEFAULT_RESPONSE_CONTENT_TYPE;

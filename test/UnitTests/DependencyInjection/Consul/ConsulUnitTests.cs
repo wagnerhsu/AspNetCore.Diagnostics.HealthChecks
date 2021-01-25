@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 using System.Linq;
 using Xunit;
 
-namespace UnitTests.DependencyInjection.Consul
+namespace UnitTests.HealthChecks.DependencyInjection.Consul
 {
     public class ConsulUnitTests
     {
@@ -42,7 +42,7 @@ namespace UnitTests.DependencyInjection.Consul
                     setup.HostName = "hostname";
                     setup.Port = 8500;
                     setup.RequireHttps = false;
-                },name:"my-consul-group");
+                }, name: "my-consul-group");
 
             var serviceProvider = services.BuildServiceProvider();
             var options = serviceProvider.GetService<IOptions<HealthCheckServiceOptions>>();

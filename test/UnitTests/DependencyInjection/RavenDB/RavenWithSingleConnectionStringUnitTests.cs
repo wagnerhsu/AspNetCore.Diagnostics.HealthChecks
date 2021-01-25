@@ -7,7 +7,7 @@ using System.Linq;
 using Xunit;
 #pragma warning disable 618
 
-namespace UnitTests.DependencyInjection.RavenDB
+namespace UnitTests.HealthChecks.DependencyInjection.RavenDB
 {
     public class ravendb_with_single_conection_string_registration_should
     {
@@ -16,7 +16,7 @@ namespace UnitTests.DependencyInjection.RavenDB
         {
             var services = new ServiceCollection();
             services.AddHealthChecks()
-                .AddRavenDB("http://localhost:8080");
+                .AddRavenDB(setup => setup.Urls = new[] { "http://localhost:8080" });
 
             var serviceProvider = services.BuildServiceProvider();
             var options = serviceProvider.GetService<IOptions<HealthCheckServiceOptions>>();
@@ -33,7 +33,7 @@ namespace UnitTests.DependencyInjection.RavenDB
         {
             var services = new ServiceCollection();
             services.AddHealthChecks()
-                .AddRavenDB("http://localhost:8080", name: "my-ravendb");
+                .AddRavenDB(setup => setup.Urls = new[] { "http://localhost:8080" }, name: "my-ravendb");
 
             var serviceProvider = services.BuildServiceProvider();
             var options = serviceProvider.GetService<IOptions<HealthCheckServiceOptions>>();

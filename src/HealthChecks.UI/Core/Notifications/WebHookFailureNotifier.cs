@@ -1,6 +1,6 @@
-﻿using HealthChecks.UI.Client;
-using HealthChecks.UI.Configuration;
+﻿using HealthChecks.UI.Configuration;
 using HealthChecks.UI.Core.Data;
+using HealthChecks.UI.Core.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -9,6 +9,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using System.Web;
 
 namespace HealthChecks.UI.Core.Notifications
 {
@@ -18,22 +19,36 @@ namespace HealthChecks.UI.Core.Notifications
         private readonly ILogger<WebHookFailureNotifier> _logger;
         private readonly Settings _settings;
         private readonly HealthChecksDb _db;
-        public WebHookFailureNotifier(HealthChecksDb db, IOptions<Settings> settings, ILogger<WebHookFailureNotifier> logger)
+        private readonly ServerAddressesService _serverAddressesService;
+        private readonly HttpClient _httpClient;
+
+        public WebHookFailureNotifier(
+            HealthChecksDb db,
+            IOptions<Settings> settings,
+            ServerAddressesService serverAddressesService,
+            ILogger<WebHookFailureNotifier> logger,
+            IHttpClientFactory httpClientFactory)
         {
             _db = db ?? throw new ArgumentNullException(nameof(db));
+            _serverAddressesService = serverAddressesService ?? throw new ArgumentNullException(nameof(serverAddressesService));
             _settings = settings.Value ?? new Settings();
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _httpClient = httpClientFactory.CreateClient(Keys.HEALTH_CHECK_WEBHOOK_HTTP_CLIENT_NAME);
+
         }
         public async Task NotifyDown(string name, UIHealthReport report)
         {
-            await Notify(name, failure: GetFailedMessageFromContent(report), isHealthy: false, description: GetFailedDescriptionsFromContent(report));
+            await Notify(name, report, isHealthy: false);
         }
         public async Task NotifyWakeUp(string name)
         {
-            await Notify(name, isHealthy: true);
+            await Notify(name, null, isHealthy: true);
         }
-        private async Task Notify(string name, string failure = "", bool isHealthy = false, string description = null)
+        internal async Task Notify(string name, UIHealthReport report, bool isHealthy = false)
         {
+            string failure = default;
+            string description = default;
+
             if (!await IsNotifiedOnWindowTime(name, isHealthy))
             {
                 await SaveNotification(new HealthCheckFailureNotification()
@@ -45,12 +60,34 @@ namespace HealthChecks.UI.Core.Notifications
 
                 foreach (var webHook in _settings.Webhooks)
                 {
-                    var payload = isHealthy ? webHook.RestoredPayload : webHook.Payload;
-                    payload = payload.Replace(Keys.LIVENESS_BOOKMARK, name)
-                        .Replace(Keys.FAILURE_BOOKMARK, failure)
-                        .Replace(Keys.DESCRIPTIONS_BOOKMARK, description);
+                    bool shouldNotify = webHook.ShouldNotifyFunc?.Invoke(report) ?? true;
 
-                    await SendRequest(webHook.Uri, webHook.Name, payload);
+                    if (!shouldNotify)
+                    {
+                        _logger.LogInformation("Webhook notification will not be sent because of user configuration");
+                        continue;
+                    };
+
+                    if (!isHealthy)
+                    {
+                        failure = webHook.CustomMessageFunc?.Invoke(report) ?? GetFailedMessageFromContent(report);
+                        description = webHook.CustomDescriptionFunc?.Invoke(report) ?? GetFailedDescriptionsFromContent(report);
+                    }
+
+                    var payload = isHealthy ? webHook.RestoredPayload : webHook.Payload;
+                    payload = payload.Replace(Keys.LIVENESS_BOOKMARK, HttpUtility.JavaScriptStringEncode(name))
+                        .Replace(Keys.FAILURE_BOOKMARK, HttpUtility.JavaScriptStringEncode(failure))
+                        .Replace(Keys.DESCRIPTIONS_BOOKMARK, HttpUtility.JavaScriptStringEncode(description));
+
+
+                    Uri.TryCreate(webHook.Uri, UriKind.Absolute, out var absoluteUri);
+
+                    if (absoluteUri == null || !absoluteUri.IsValidHealthCheckEndpoint())
+                    {
+                        Uri.TryCreate(_serverAddressesService.AbsoluteUriFromRelative(webHook.Uri), UriKind.Absolute, out absoluteUri);
+                    }
+
+                    await SendRequest(absoluteUri, webHook.Name, payload);
                 }
             }
             else
@@ -61,7 +98,7 @@ namespace HealthChecks.UI.Core.Notifications
         private async Task<bool> IsNotifiedOnWindowTime(string livenessName, bool restore)
         {
             var lastNotification = await _db.Failures
-                .Where(lf => lf.HealthCheckName.Equals(livenessName, StringComparison.InvariantCultureIgnoreCase))
+                .Where(lf => lf.HealthCheckName.ToLower() == livenessName.ToLower())
                 .OrderByDescending(lf => lf.LastNotified)
                 .Take(1)
                 .SingleOrDefaultAsync();
@@ -72,7 +109,6 @@ namespace HealthChecks.UI.Core.Notifications
                 &&
                 (DateTime.UtcNow - lastNotification.LastNotified).TotalSeconds < _settings.MinimumSecondsBetweenFailureNotifications;
         }
-
         private async Task SaveNotification(HealthCheckFailureNotification notification)
         {
             if (notification != null)
@@ -83,53 +119,38 @@ namespace HealthChecks.UI.Core.Notifications
                 await _db.SaveChangesAsync();
             }
         }
-
-        private async Task SendRequest(string uri, string name, string payloadContent)
+        private async Task SendRequest(Uri uri, string name, string payloadContent)
         {
-            if (uri == null || !Uri.TryCreate(uri, UriKind.Absolute, out Uri webHookUri))
-            {
-                _logger.LogWarning($"The web hook notification uri is not stablished or is not an absolute Uri ({name}). Set the webhook uri value on BeatPulse setttings.");
-
-                return;
-            }
             try
             {
-                using (var httpClient = new HttpClient())
+                var payload = new StringContent(payloadContent, Encoding.UTF8, Keys.DEFAULT_RESPONSE_CONTENT_TYPE);
+                var response = await _httpClient.PostAsync(uri, payload);
+                if (!response.IsSuccessStatusCode)
                 {
-                    var payload = new StringContent(payloadContent, Encoding.UTF8, Keys.DEFAULT_RESPONSE_CONTENT_TYPE);
-                    var response = await httpClient.PostAsync(webHookUri, payload);
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        _logger.LogError($"The webhook notification has not executed successfully for {name} webhook. The error code is {response.StatusCode}.");
-                    }
+                    _logger.LogError("The webhook notification has not executed successfully for {name} webhook. The error code is {statuscode}.", name, response.StatusCode);
                 }
+
             }
             catch (Exception exception)
             {
                 _logger.LogError($"The failure notification for {name} has not executed successfully.", exception);
             }
         }
-
         private string GetFailedMessageFromContent(UIHealthReport healthReport)
         {
             var failedChecks = healthReport.Entries.Values
                 .Count(c => c.Status != UIHealthStatus.Healthy);
+            var plural = PluralizeHealthcheck(failedChecks);
 
-            return $"There are at least {failedChecks} HealthChecks failing.";
+            return $"There {plural.plural} at least {failedChecks} {plural.noun} failing.";
         }
-
         private string GetFailedDescriptionsFromContent(UIHealthReport healthReport)
         {
-            const string JOIN_SYMBOL = "|";
+            var failedChecks = healthReport.Entries.Where(e => e.Value.Status == UIHealthStatus.Unhealthy);
+            var plural = PluralizeHealthcheck(failedChecks.Count());
 
-            var failedChecksDescription = healthReport.Entries.Values
-                .Where(c => c.Status != UIHealthStatus.Healthy)
-                .Select(x => x.Description)
-                .Aggregate((first, after) => $"{first} {JOIN_SYMBOL} {after}");
-
-            return failedChecksDescription;
+            return $"{string.Join(" , ", failedChecks.Select(f => f.Key))} {plural.noun} {plural.plural} failing";
         }
-
         public void Dispose()
         {
             if (_db != null)
@@ -137,5 +158,10 @@ namespace HealthChecks.UI.Core.Notifications
                 _db.Dispose();
             }
         }
+
+        private (string plural, string noun) PluralizeHealthcheck(int count) =>
+            count > 1 ?
+            ("are", "healthchecks") :
+            ("is", "healthcheck");
     }
 }

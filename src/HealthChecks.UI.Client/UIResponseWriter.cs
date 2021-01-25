@@ -1,8 +1,10 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using HealthChecks.UI.Core;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-using Newtonsoft.Json.Serialization;
+using System;
+using System.IO;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace HealthChecks.UI.Client
@@ -11,30 +13,58 @@ namespace HealthChecks.UI.Client
     {
         const string DEFAULT_CONTENT_TYPE = "application/json";
 
-        public static Task WriteHealthCheckUIResponse(HttpContext httpContext, HealthReport report)
-        {
-            var response = "{}";
+        private static byte[] emptyResponse = new byte[] { (byte)'{', (byte)'}' };
+        private static Lazy<JsonSerializerOptions> options = new Lazy<JsonSerializerOptions>(() => CreateJsonOptions());
 
+        public static async Task WriteHealthCheckUIResponse(HttpContext httpContext, HealthReport report)
+        {
             if (report != null)
             {
-                var settings = new JsonSerializerSettings()
-                {
-                    ContractResolver = new CamelCasePropertyNamesContractResolver(),
-                    NullValueHandling = NullValueHandling.Ignore,
-                    ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
-                };
-
-                settings.Converters.Add(new StringEnumConverter());
-
                 httpContext.Response.ContentType = DEFAULT_CONTENT_TYPE;
 
                 var uiReport = UIHealthReport
                     .CreateFrom(report);
 
-                response = JsonConvert.SerializeObject(uiReport, settings);
-            }
+                using var responseStream = new MemoryStream();
 
-            return httpContext.Response.WriteAsync(response);
+                await JsonSerializer.SerializeAsync(responseStream, uiReport, options.Value);
+                await httpContext.Response.BodyWriter.WriteAsync(responseStream.ToArray());
+            }
+            else
+            {
+                await httpContext.Response.BodyWriter.WriteAsync(emptyResponse);
+            }
+        }
+
+        private static JsonSerializerOptions CreateJsonOptions()
+        {
+            var options = new JsonSerializerOptions()
+            {
+                AllowTrailingCommas = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                IgnoreNullValues = true,
+            };
+
+            options.Converters.Add(new JsonStringEnumConverter());
+
+            //for compatibility with older UI versions ( <3.0 ) we arrange
+            //timespan serialization as s
+            options.Converters.Add(new TimeSpanConverter());
+
+            return options;
+        }
+    }
+
+    internal class TimeSpanConverter
+        : JsonConverter<TimeSpan>
+    {
+        public override TimeSpan Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            return default;
+        }
+        public override void Write(Utf8JsonWriter writer, TimeSpan value, JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value.ToString());
         }
     }
 }

@@ -3,6 +3,7 @@ using System;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using HealthChecks.Network.Extensions;
 
 namespace HealthChecks.Network
 {
@@ -18,16 +19,16 @@ namespace HealthChecks.Network
         {
             try
             {
-                foreach (var item in _options.Hosts.Values)
+                foreach (var (host, createFile, credentials) in _options.Hosts.Values)
                 {
-                    var ftpRequest = CreateFtpWebRequest(item.host, item.createFile, item.credentials);
+                    var ftpRequest = CreateFtpWebRequest(host, createFile, credentials);
 
-                    using (var ftpResponse = (FtpWebResponse)await ftpRequest.GetResponseAsync())
+                    using (var ftpResponse = (FtpWebResponse)await ftpRequest.GetResponseAsync().WithCancellationTokenAsync(cancellationToken))
                     {
                         if (ftpResponse.StatusCode != FtpStatusCode.PathnameCreated
                             && ftpResponse.StatusCode != FtpStatusCode.ClosingData)
                         {
-                            return new HealthCheckResult(context.Registration.FailureStatus, description: $"Error connecting to ftp host {item.host} with exit code {ftpResponse.StatusCode}");
+                            return new HealthCheckResult(context.Registration.FailureStatus, description: $"Error connecting to ftp host {host} with exit code {ftpResponse.StatusCode}");
                         }
                     }
                 }
@@ -39,7 +40,7 @@ namespace HealthChecks.Network
                 return new HealthCheckResult(context.Registration.FailureStatus, exception: ex);
             }
         }
-        WebRequest CreateFtpWebRequest(string host, bool createFile = false, NetworkCredential credentials = null)
+        private WebRequest CreateFtpWebRequest(string host, bool createFile = false, NetworkCredential credentials = null)
         {
             FtpWebRequest ftpRequest;
 

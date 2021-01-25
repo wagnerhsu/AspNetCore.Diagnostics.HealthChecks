@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Diagnostics.HealthChecks;
 using RabbitMQ.Client;
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -10,24 +9,34 @@ namespace HealthChecks.RabbitMQ
     public class RabbitMQHealthCheck
         : IHealthCheck
     {
-        private readonly string _rabbitMqConnectionString;
+        private IConnection _connection;
+
+        private IConnectionFactory _factory;
+        private readonly Uri _rabbitConnectionString;
         private readonly SslOption _sslOption;
 
-        public RabbitMQHealthCheck(string rabbitMqConnectionString, SslOption sslOption = null)
+        public RabbitMQHealthCheck(IConnection connection)
         {
-            _rabbitMqConnectionString = rabbitMqConnectionString ?? throw new ArgumentNullException(nameof(rabbitMqConnectionString));
-            _sslOption = sslOption ?? new SslOption(serverName: "localhost", enabled: false);
+            _connection = connection ?? throw new ArgumentNullException(nameof(connection));
         }
+        public RabbitMQHealthCheck(IConnectionFactory factory)
+        {
+            _factory = factory ?? throw new ArgumentNullException(nameof(factory));
+        }
+
+        public RabbitMQHealthCheck(Uri rabbitConnectionString, SslOption ssl)
+        {
+            _rabbitConnectionString = rabbitConnectionString;
+            _sslOption = ssl;
+        }
+
         public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
         {
             try
             {
-                var factory = new ConnectionFactory()
-                {
-                    Uri = new Uri(_rabbitMqConnectionString)
-                };
-                using (var connection = CreateConnection(factory, _sslOption))
-                using (var channel = connection.CreateModel())
+                EnsureConnection();
+
+                using (_connection.CreateModel())
                 {
                     return Task.FromResult(
                         HealthCheckResult.Healthy());
@@ -39,9 +48,24 @@ namespace HealthChecks.RabbitMQ
                     new HealthCheckResult(context.Registration.FailureStatus, exception: ex));
             }
         }
-        private static IConnection CreateConnection(IConnectionFactory connectionFactory, SslOption sslOption)
+
+        private void EnsureConnection()
         {
-            return connectionFactory.CreateConnection(new List<AmqpTcpEndpoint> { new AmqpTcpEndpoint(connectionFactory.Uri, sslOption) });
+            if (_connection == null)
+            {
+                if (_factory == null)
+                {
+                    _factory = new ConnectionFactory()
+                    {
+                        Uri = _rabbitConnectionString,
+                        AutomaticRecoveryEnabled = true,
+                        UseBackgroundThreadsForIO = true,
+                        Ssl = _sslOption ?? new SslOption()
+                    };
+                }
+
+                _connection = _factory.CreateConnection();
+            }
         }
     }
 }
